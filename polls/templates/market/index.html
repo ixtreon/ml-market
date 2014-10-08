@@ -1,0 +1,9 @@
+{% if claims %}
+<ul>
+    {% for c in claims %}
+    <li><a href="{% url 'polls:market' c.id %}">{{ c.description }}</a></li>
+    {% endfor %}
+</ul>
+{% else %}
+<p>No claims available.</p>
+{% endif %}
