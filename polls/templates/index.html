@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<table border="1">
+<tr>
+    <th>Description</th>
+    <th>Date Started</th>
+    <th>Current Funds</th>
+</tr>
+
+{% if markets %}
+    {% for m in markets %}
+    <tr>
+        <td><a href="{% url 'polls:market' m.id %}">{{ m.description }}</a></td>
+        <td>{{ m.pub_date }}</td>
+        <td>NYI</td>
+    </tr>
+    {% endfor %}
+{% else %}
+    <tr>
+        <td colspan="3" align="center">No markets.</td>
+    </tr>
+{% endif %}
+</table>
+
+{% endblock %}

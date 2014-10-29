@@ -1,9 +1,20 @@
-{% if claims %}
-<ul>
-    {% for c in claims %}
-    <li><a href="{% url 'polls:market' c.id %}">{{ c.description }}</a></li>
-    {% endfor %}
-</ul>
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>{{ form.market.description }}</h1>
+
+{# Check whether the user has an account for this market. #}
+{% if form.account == None %}
+    {% include "forms/enter_market.html" %}
 {% else %}
-<p>No claims available.</p>
+    <p>Your current bank is {{ form.account.funds }} credits. </p>
+
+
+    {# betting form #}
+    {% include "forms/bet_single.html" %}
 {% endif %}
+
+
+
+{% endblock %}

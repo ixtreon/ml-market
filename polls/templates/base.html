@@ -1,0 +1,36 @@
+﻿<!DOCTYPE html>
+{% load staticfiles %}
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>MarketThing</title>
+    <link rel="stylesheet" href="{% static "css/base.css" %}">
+    
+    {# jQuery #}
+    <script src="{% static "jquery-1.11.1.js" %}"></script>
+</head>
+<body>
+
+<header id="nav">
+    <table id="nav_bar">
+        <tr>
+            <td><a href={% url "polls:markets" %}>Market Index</a></td>
+            <td><a href={% url "polls:markets" %}>All Markets</a></td>
+        </tr>
+    </table>
+    <p id="nav_greet">
+    {% if user.is_authenticated %}
+        Welcome to the shano market, {{ user.username }}. 
+        <a href="{% url "logout" %}">[Log out]</a>
+    {% else %}
+        Welcome to the shano market. Please  
+        <a href="{% url "login" %}">[Log in]</a>.
+    {% endif %}
+    </p>
+</header>
+<div id="content">
+    {% block content %}{% endblock %}
+</div>
+
+</body>
+</html>

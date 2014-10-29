@@ -29,6 +29,9 @@
   <ItemGroup>
     <Compile Include="manage.py" />
     <Compile Include="polls\admin.py" />
+    <Compile Include="polls\forms.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="polls\migrations\0001_initial.py" />
     <Compile Include="polls\migrations\0002_auto_20141007_2044.py" />
     <Compile Include="polls\migrations\0003_auto_20141007_2057.py" />
@@ -46,15 +49,32 @@
     <Compile Include="testsite\__init__.py" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="polls\templates\market\detail.html" />
+    <Content Include="polls\static\jquery-1.11.1.js" />
+    <Content Include="polls\templates\base.html" />
+    <Content Include="polls\static\css\base.css" />
+    <Content Include="polls\templates\forms\bet_multi.html" />
+    <Content Include="polls\templates\forms\bet_single.html" />
+    <Content Include="polls\templates\forms\enter_market.html" />
+    <Content Include="polls\templates\forms\view_bets.html" />
+    <Content Include="polls\templates\forms\view_players.html" />
+    <Content Include="polls\templates\market\active_markets.html" />
     <Content Include="polls\templates\market\index.html" />
+    <Content Include="polls\templates\index.html" />
+    <Content Include="polls\templates\registration\login.html" />
+    <Content Include="polls\templates\upload.html" />
+    <Content Include="polls\templates\user.html" />
     <Content Include="testsite\templates\admin\base_site.html" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="polls" />
     <Folder Include="polls\migrations" />
+    <Folder Include="polls\templates\forms\" />
+    <Folder Include="polls\uploads\" />
+    <Folder Include="polls\static\" />
     <Folder Include="polls\templates\" />
     <Folder Include="polls\templates\market" />
+    <Folder Include="polls\static\css\" />
+    <Folder Include="polls\templates\registration\" />
     <Folder Include="testsite" />
     <Folder Include="testsite\templates\" />
     <Folder Include="testsite\templates\admin" />
