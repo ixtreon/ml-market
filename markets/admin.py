@@ -14,18 +14,16 @@ class OutcomeInline(admin.StackedInline):
 # contains any extras that can be performed from the market admin page. 
 # currently includes functionality for dummy (randomised) dataset creation. 
 # TODO: allow xml/json serialization. 
-class MarketAdminForm(forms.ModelForm):
-
-    extra_field = forms.IntegerField(initial=0)
-    
+class MarketAdminForm(forms.ModelForm):    
+    user = None
     
     def __init__(self, *args, **kwargs):
         super(MarketAdminForm, self).__init__(*args, **kwargs)
 
     def clean_last_revealed_id(self):
+        # get the user-specified last-revealed id
         data = self.cleaned_data['last_revealed_id']
-
-        try:
+        try:    # as int
             last_id = int(data)
         except:
             raise forms.ValidationError("This value must be an integer. ")
@@ -35,26 +33,16 @@ class MarketAdminForm(forms.ModelForm):
             try:
                 sets = Datum.objects.get(data_set__market=self.instance, setId=last_id)
             except ObjectDoesNotExist:
-                raise forms.ValidationError("There is no challenge with such id!")
+                raise forms.ValidationError("There is no such challenge for this market!")
             except MultipleObjectsReturned:
                 raise Exception("Too many challenges with this id! Corrupted db?.. ")
         return data
 
-
-
+    # sets the market's 'published date' to now. 
     def save(self, commit=True):
-        extra_field = self.cleaned_data.get('extra_field', None)
-        # ...do something with extra_field here...
-
-        
-        print("market admin save.. ")
-        # set the pub_date field to today, now. 
         market = super(MarketAdminForm, self).save(commit=False)
         market.pub_date = timezone.now()
         market.save(commit=commit)
-        #ds = DataSet.newTrain(market, 10)
-        print('done!')
-
         return market
 
     class Meta:
@@ -69,37 +57,54 @@ class DataSetAdminForm(forms.ModelForm):
         model = DataSet
         fields = ('market', 'is_training',)
 
-    upload_file = forms.ModelChoiceField(queryset=Document.objects, empty_label='None')
+    upload_file = forms.ModelChoiceField(queryset=None, empty_label='None', required=False)
 
     n_random_entries = forms.IntegerField(initial=0)
-    
-    def get_form(self, request, **kwargs):
-         form = super(DataSetAdminForm, self).get_form(request, **kwargs)
-         form.user = request.user
-         self.fields['upload_file'].queryset = Document.objects.filter(user=self.user)
-         print('get form')
-         return form
    
     def __init__(self, *args, **kwargs):
         super(DataSetAdminForm, self).__init__(*args, **kwargs)
         # set the uploaded file dropdown
+        self.fields['upload_file'].queryset = Document.objects.filter(user=self.user)
 
-
+    # TODO: check whether only one of random/file data sources is set
     def clean(self):
-        cleaned_data = super(ContactForm, self).clean()
+        cleaned_data = super(DataSetAdminForm, self).clean()
+        file = cleaned_data.get('upload_file', None)
+        n_random = cleaned_data.get('n_random_entries', 0)
+
+        gen_random = n_random > 0
+        has_file = file != None
+        
+        if (gen_random == has_file):
+            raise forms.ValidationError("You must choose exactly one source for the data set. ")
+        
+        # no uploaded file parsing yet. 
+        if has_file:
+            raise forms.ValidationError("Uploaded file parsing not yet available!")
 
     # todo: generate random data
     def save(self, commit=True):
         file = self.cleaned_data.get('upload_file', None)
-        n_random = self.cleaned_data.get('n_random_entries', None)
-        # ...do something with the extra fields here...
+        n_random = self.cleaned_data.get('n_random_entries', 0)
+        # if we are here then exactly one of n_random, file would be non-default
         
+        if n_random > 0:
+            DataSet.newTrain(self.instance.market, n_random)
+        else:
+            pass    # nyi - see if clean throws a validation error
+
+
         return super(DataSetAdminForm, self).save(commit=commit)
 
 
 class DataSetAdmin(admin.ModelAdmin):
     form = DataSetAdminForm
     list_display = ('market', 'is_training', 'datum_count')
+    def get_form(self, request, *args, **kwargs):
+         print('get form')
+         form = super(DataSetAdmin, self).get_form(request, **kwargs)
+         form.user = request.user
+         return form
 
 class DataSetInline(admin.StackedInline):
     model = DataSet
