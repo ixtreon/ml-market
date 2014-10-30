@@ -1,0 +1,29 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+</head>
+<body>
+    <h1>File upload</h1>
+    <form action="{% url 'upload' %}" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <table>
+            <tr><td>
+                <p>{{ form.file }}</p>
+            </td></tr>
+            <tr><td>
+                <p><input type="submit" value="Upload" /></p>
+            </td></tr>
+        </table>
+    </form>
+
+    <h2>Uploaded files:</h2>
+    {% if form.docs_present > 0 %}
+        {{ form.file_list }}
+    {% else %}
+        <p>No files yet!</p>
+    {% endif %}
+</body>
+</html>

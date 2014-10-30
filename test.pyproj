@@ -28,56 +28,52 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="manage.py" />
-    <Compile Include="polls\admin.py" />
-    <Compile Include="polls\forms.py">
+    <Compile Include="markets\admin.py" />
+    <Compile Include="markets\forms.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="polls\migrations\0001_initial.py" />
-    <Compile Include="polls\migrations\0002_auto_20141007_2044.py" />
-    <Compile Include="polls\migrations\0003_auto_20141007_2057.py" />
-    <Compile Include="polls\migrations\0004_auto_20141007_2059.py" />
-    <Compile Include="polls\migrations\0005_outcome_price.py" />
-    <Compile Include="polls\migrations\__init__.py" />
-    <Compile Include="polls\models.py" />
-    <Compile Include="polls\tests.py" />
-    <Compile Include="polls\urls.py" />
-    <Compile Include="polls\views.py" />
-    <Compile Include="polls\__init__.py" />
-    <Compile Include="testsite\settings.py" />
-    <Compile Include="testsite\urls.py" />
-    <Compile Include="testsite\wsgi.py" />
-    <Compile Include="testsite\__init__.py" />
+    <Compile Include="markets\migrations\0001_initial.py" />
+    <Compile Include="markets\migrations\__init__.py" />
+    <Compile Include="markets\models.py" />
+    <Compile Include="markets\tests.py" />
+    <Compile Include="markets\urls.py" />
+    <Compile Include="markets\views.py" />
+    <Compile Include="markets\__init__.py" />
+    <Compile Include="mainsite\settings.py" />
+    <Compile Include="mainsite\urls.py" />
+    <Compile Include="mainsite\wsgi.py" />
+    <Compile Include="mainsite\__init__.py" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="polls\static\jquery-1.11.1.js" />
-    <Content Include="polls\templates\base.html" />
-    <Content Include="polls\static\css\base.css" />
-    <Content Include="polls\templates\forms\bet_multi.html" />
-    <Content Include="polls\templates\forms\bet_single.html" />
-    <Content Include="polls\templates\forms\enter_market.html" />
-    <Content Include="polls\templates\forms\view_bets.html" />
-    <Content Include="polls\templates\forms\view_players.html" />
-    <Content Include="polls\templates\market\active_markets.html" />
-    <Content Include="polls\templates\market\index.html" />
-    <Content Include="polls\templates\index.html" />
-    <Content Include="polls\templates\registration\login.html" />
-    <Content Include="polls\templates\upload.html" />
-    <Content Include="polls\templates\user.html" />
-    <Content Include="testsite\templates\admin\base_site.html" />
+    <Content Include="markets\static\jquery-1.11.1.js" />
+    <Content Include="markets\templates\base.html" />
+    <Content Include="markets\static\css\base.css" />
+    <Content Include="markets\templates\forms\bet_multi.html" />
+    <Content Include="markets\templates\forms\bet_single.html" />
+    <Content Include="markets\templates\forms\enter_market.html" />
+    <Content Include="markets\templates\forms\view_bets.html" />
+    <Content Include="markets\templates\forms\view_players.html" />
+    <Content Include="markets\templates\market\active_markets.html" />
+    <Content Include="markets\templates\market\index.html" />
+    <Content Include="markets\templates\index.html" />
+    <Content Include="markets\templates\registration\login.html" />
+    <Content Include="markets\templates\upload.html" />
+    <Content Include="markets\templates\user.html" />
+    <Content Include="mainsite\templates\admin\base_site.html" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="polls" />
-    <Folder Include="polls\migrations" />
-    <Folder Include="polls\templates\forms\" />
-    <Folder Include="polls\uploads\" />
-    <Folder Include="polls\static\" />
-    <Folder Include="polls\templates\" />
-    <Folder Include="polls\templates\market" />
-    <Folder Include="polls\static\css\" />
-    <Folder Include="polls\templates\registration\" />
-    <Folder Include="testsite" />
-    <Folder Include="testsite\templates\" />
-    <Folder Include="testsite\templates\admin" />
+    <Folder Include="markets\" />
+    <Folder Include="markets\migrations\" />
+    <Folder Include="markets\templates\forms\" />
+    <Folder Include="markets\uploads\" />
+    <Folder Include="markets\static\" />
+    <Folder Include="markets\templates\" />
+    <Folder Include="markets\templates\market\" />
+    <Folder Include="markets\static\css\" />
+    <Folder Include="markets\templates\registration\" />
+    <Folder Include="mainsite\" />
+    <Folder Include="mainsite\templates\" />
+    <Folder Include="mainsite\templates\admin\" />
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="{9a7a9026-48c1-4688-9d5d-e5699d47d074}\3.4" />
