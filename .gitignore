@@ -5,10 +5,9 @@
 *.suo
 *.user
 *.sln.docstates
-
+db.sqlite3
 # user uploads folder
 /uploads/
-
 
 # Build results
 
