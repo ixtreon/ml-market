@@ -7,18 +7,15 @@ from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 # Register your models here.
 
 
-class OutcomeInline(admin.StackedInline):
-    model = Outcome
-    extra = 2
 
-# contains any extras that can be performed from the market admin page. 
-# currently includes functionality for dummy (randomised) dataset creation. 
-# TODO: allow xml/json serialization. 
-class MarketAdminForm(forms.ModelForm):    
+# the market admin form; 
+# right now it makes sure pub_date is set to today when we save a
+class MarketAdminForm(forms.ModelForm):   
+    class Meta:
+        model = Market
+        fields = ('description', 'exp_date', 'reveal_interval', 'last_revealed_id') 
+
     user = None
-    
-    def __init__(self, *args, **kwargs):
-        super(MarketAdminForm, self).__init__(*args, **kwargs)
 
     def clean_last_revealed_id(self):
         # get the user-specified last-revealed id
@@ -28,7 +25,7 @@ class MarketAdminForm(forms.ModelForm):
         except:
             raise forms.ValidationError("This value must be an integer. ")
 
-        # check if there is such challenge for any of this market's datasets. 
+        # check if there is such a challenge for any (!!) of this market's datasets. 
         if last_id != -1:
             try:
                 sets = Datum.objects.get(data_set__market=self.instance, setId=last_id)
@@ -38,16 +35,16 @@ class MarketAdminForm(forms.ModelForm):
                 raise Exception("Too many challenges with this id! Corrupted db?.. ")
         return data
 
-    # sets the market's 'published date' to now. 
+    # if published_date is None 
+    # (the default when creating a new market)
+    # set it to today. 
     def save(self, commit=True):
         market = super(MarketAdminForm, self).save(commit=False)
-        market.pub_date = timezone.now()
+        if market.pub_date == None:
+            market.pub_date = timezone.now()
         market.save(commit=commit)
         return market
 
-    class Meta:
-        model = Market
-        fields = ('description', 'exp_date', 'reveal_interval', 'last_revealed_id')
 
 # The form used to create DataSets. 
 # A dataset can be created either from an uploaded file
@@ -57,13 +54,15 @@ class DataSetAdminForm(forms.ModelForm):
         model = DataSet
         fields = ('market', 'is_training',)
 
+    # the uploaded file to use as an input. 
     upload_file = forms.ModelChoiceField(queryset=None, empty_label='None', required=False)
-
+    # the amount of random entries to generate. 
+    # if <= 0, then no random entries are generated. 
     n_random_entries = forms.IntegerField(initial=0)
    
+    # gets the files this user has uploaded
     def __init__(self, *args, **kwargs):
         super(DataSetAdminForm, self).__init__(*args, **kwargs)
-        # set the uploaded file dropdown
         self.fields['upload_file'].queryset = Document.objects.filter(user=self.user)
 
     # TODO: check whether only one of random/file data sources is set
@@ -82,7 +81,8 @@ class DataSetAdminForm(forms.ModelForm):
         if has_file:
             raise forms.ValidationError("Uploaded file parsing not yet available!")
 
-    # todo: generate random data
+    # Checks whether we are to parse an uploaded file
+    # or to generate random entries. Then does it. 
     def save(self, commit=True):
         file = self.cleaned_data.get('upload_file', None)
         n_random = self.cleaned_data.get('n_random_entries', 0)
@@ -100,20 +100,21 @@ class DataSetAdminForm(forms.ModelForm):
 class DataSetAdmin(admin.ModelAdmin):
     form = DataSetAdminForm
     list_display = ('market', 'is_training', 'datum_count')
+
+    # sets the user for the DataSetAdminForm
     def get_form(self, request, *args, **kwargs):
          print('get form')
          form = super(DataSetAdmin, self).get_form(request, **kwargs)
          form.user = request.user
          return form
-
-class DataSetInline(admin.StackedInline):
-    model = DataSet
-    fields = ('is_training',)
-    extra = 1
+     
+class OutcomeInline(admin.StackedInline):
+    model = Outcome
+    extra = 2
 
 class MarketAdmin(admin.ModelAdmin):
     form = MarketAdminForm
-    inlines = [OutcomeInline, DataSetInline]
+    inlines = [OutcomeInline]
     list_display = ('description', 'pub_date', 'last_revealed_id')
     
     # gets the market we're saving from the inline stuff. 
@@ -134,8 +135,8 @@ class MarketAdmin(admin.ModelAdmin):
         print("fixing outcomes..")
         Market.fix_outcomes(Market, instance=self.market)
 
-# the following 3 are temporary admin views used for debugging
-# todo: remove or make these usable
+# the following 3 classes are temporary admin views used for debugging
+# TODO: remove or make these usable
 class OrderAdmin(admin.ModelAdmin):
     list_display = ('datum', 'claim', 'price', 'amount', 'timestamp')
 
@@ -146,7 +147,6 @@ class DatumAdmin(admin.ModelAdmin):
     list_display = ('x', 'y', 'setId', 'data_set')
 
 # register the above classes with the admin interface. 
-
 admin.site.register(Market, MarketAdmin)
 admin.site.register(Order, OrderAdmin)
 admin.site.register(Outcome, OutcomeAdmin)

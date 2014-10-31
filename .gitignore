@@ -6,6 +6,10 @@
 *.user
 *.sln.docstates
 
+# user uploads folder
+/uploads/
+
+
 # Build results
 
 [Dd]ebug/

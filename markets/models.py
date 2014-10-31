@@ -22,7 +22,8 @@ class Market(models.Model):
     description = models.CharField(max_length=255, default='Add a description here. ')
     pub_date = models.DateTimeField('Date Started')
     exp_date = models.DateTimeField('Expiration Date', default=t)
-    # interval between challenge revelations
+
+    # interval between consecutive challenges
     reveal_interval = models.IntegerField('Interval between challenges', default=1)
     # date last challenge was revealed
     last_revealed_id = models.IntegerField('Current challenge id', default = -1)
