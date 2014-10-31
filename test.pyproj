@@ -45,17 +45,17 @@
     <Compile Include="mainsite\__init__.py" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="markets\templates\index.html" />
     <Content Include="markets\static\jquery-1.11.1.js" />
     <Content Include="markets\templates\base.html" />
     <Content Include="markets\static\css\base.css" />
     <Content Include="markets\templates\forms\bet_multi.html" />
     <Content Include="markets\templates\forms\bet_single.html" />
-    <Content Include="markets\templates\forms\enter_market.html" />
-    <Content Include="markets\templates\forms\view_bets.html" />
+    <Content Include="markets\templates\forms\join_market.html" />
+    <Content Include="markets\templates\forms\view_orders.html" />
     <Content Include="markets\templates\forms\view_players.html" />
-    <Content Include="markets\templates\market\active_markets.html" />
     <Content Include="markets\templates\market\index.html" />
-    <Content Include="markets\templates\index.html" />
+    <Content Include="markets\templates\all-markets.html" />
     <Content Include="markets\templates\registration\login.html" />
     <Content Include="markets\templates\upload.html" />
     <Content Include="markets\templates\user.html" />

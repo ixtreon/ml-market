@@ -1,1 +1,71 @@
 ﻿
+    <form action="{% url 'markets:market' form.market.id %}" method="post">
+    {% csrf_token %}
+        
+    <h2>New order:</h2>
+    {# possible outcomes #}
+    <p>
+        <table border="1" id="outcome_table">
+            <tr>
+                <th>Outcome</th>
+                <th>Price per Contract</th>
+                <th># Contracts</th>
+            </tr>
+        {% for o in form.outcomes %}
+        <tr>
+            <td>
+            <label for="choice{{ o.id }}">{{ o.name }}</label><br />
+            </td>
+            <td align="right">
+                {{o.current_price}}
+            </td>
+            <td><input type="number" name="pos_{{o.id}}" class="amount" value="0" oninput="validate_amounts()"/></td>
+        </tr>
+        {% endfor %}
+
+        {# Total cost approximation #}
+        <tr>
+            <th colspan="2">Approximated cost:</th>
+            <td><input type="number" name="total_cost" value="0" readonly/></td>
+        </tr>
+        </table>
+        <label class="error">{{ form.errors.claim }}</label>
+    </p>
+
+
+    {# bet button #}
+    <p>
+        <input type="submit" value="Place an order" />
+    </p>    
+
+
+    {# js verification #}
+    <script>
+        var funds = {{ form.account.funds }}
+        var outcomes = {{ form.price_list }}
+    </script>
+    <script>
+        var btn_outcomes = $(".outcome")
+        var btn_amounts = $('.amount')
+        var btn_cost = $("[name=total_cost]")[0]
+        var place_order = $("[type=submit]")[0]
+        validate_amounts()
+        function validate_amounts() {
+            var sum = 0;
+            for (i = 0; i < btn_amounts.length; ++i) {
+                var a = btn_amounts[i];
+                if(a.value == "")
+                    a.value = "0";
+                else
+                    sum += parseFloat(a.value) * outcomes[i];
+            }
+            btn_cost.value = sum
+            if(btn_cost.value == 0)
+                place_order.setCustomValidity("Please bet something!")
+            else
+                place_order.setCustomValidity("")
+        }
+        //validate_claims()
+    </script>
+
+    </form>

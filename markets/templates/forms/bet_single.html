@@ -1,12 +1,12 @@
 ﻿    <form action="{% url 'markets:market' form.market.id %}" method="post">
     {% csrf_token %}
-        
+    <h2>New order:</h2>
     {# possible outcomes #}
     <p>
         <table border="1" id="outcome_table">
             <tr>
                 <th colspan="2">Outcome</th>
-                <th>Price per Asset</th>
+                <th>Price per Contract</th>
             </tr>
         {% for o in form.outcomes %}
         <tr>
@@ -43,7 +43,7 @@
 
     {# bet button #}
     <p>
-        <input type="submit" value="Bet" />
+        <input type="submit" value="Place an order" />
     </p>    
 
 

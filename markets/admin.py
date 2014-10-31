@@ -13,27 +13,27 @@ from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 class MarketAdminForm(forms.ModelForm):   
     class Meta:
         model = Market
-        fields = ('description', 'exp_date', 'reveal_interval', 'last_revealed_id') 
+        fields = ('description',) 
 
     user = None
 
-    def clean_last_revealed_id(self):
-        # get the user-specified last-revealed id
-        data = self.cleaned_data['last_revealed_id']
-        try:    # as int
-            last_id = int(data)
-        except:
-            raise forms.ValidationError("This value must be an integer. ")
+    #def clean_last_revealed_id(self):
+    #    # get the user-specified last-revealed id
+    #    data = self.cleaned_data['last_revealed_id']
+    #    try:    # as int
+    #        last_id = int(data)
+    #    except:
+    #        raise forms.ValidationError("This value must be an integer. ")
 
-        # check if there is such a challenge for any (!!) of this market's datasets. 
-        if last_id != -1:
-            try:
-                sets = Datum.objects.get(data_set__market=self.instance, setId=last_id)
-            except ObjectDoesNotExist:
-                raise forms.ValidationError("There is no such challenge for this market!")
-            except MultipleObjectsReturned:
-                raise Exception("Too many challenges with this id! Corrupted db?.. ")
-        return data
+    #    # check if there is such a challenge for any (!!) of this market's datasets. 
+    #    if last_id != -1:
+    #        try:
+    #            sets = Datum.objects.get(data_set__market=self.instance, setId=last_id)
+    #        except ObjectDoesNotExist:
+    #            raise forms.ValidationError("There is no such challenge for this market!")
+    #        except MultipleObjectsReturned:
+    #            raise Exception("Too many challenges with this id! Corrupted db?.. ")
+    #    return data
 
     # if published_date is None 
     # (the default when creating a new market)
@@ -52,34 +52,48 @@ class MarketAdminForm(forms.ModelForm):
 class DataSetAdminForm(forms.ModelForm):
     class Meta:
         model = DataSet
-        fields = ('market', 'is_training',)
-
-    # the uploaded file to use as an input. 
-    upload_file = forms.ModelChoiceField(queryset=None, empty_label='None', required=False)
+        fields = (
+            'market', 
+            'description',
+            'reveal_interval',
+            'is_training', 
+            )
     # the amount of random entries to generate. 
     # if <= 0, then no random entries are generated. 
-    n_random_entries = forms.IntegerField(initial=0)
-   
+    n_random_entries = forms.IntegerField(initial=0, required=False)
+    # the uploaded file to use as an input. 
+    upload_file = forms.ModelChoiceField(queryset=Document.objects.none(), empty_label='None', required=False)
+
+
     # gets the files this user has uploaded
+    # also removes the upload buttons if editing a set
     def __init__(self, *args, **kwargs):
         super(DataSetAdminForm, self).__init__(*args, **kwargs)
-        self.fields['upload_file'].queryset = Document.objects.filter(user=self.user)
+        if self.instance.id:
+            self.fields['n_random_entries'].widget.attrs['readonly'] = True
+            self.fields['upload_file'].widget.attrs['readonly'] = True
+            self.is_new = False
+            print(self.fields)
+        else:
+            self.is_new = True
+            self.fields['upload_file'].queryset = Document.objects.filter(user=self.user)
 
-    # TODO: check whether only one of random/file data sources is set
+    # check whether only one of random/file data sources is set
     def clean(self):
-        cleaned_data = super(DataSetAdminForm, self).clean()
-        file = cleaned_data.get('upload_file', None)
-        n_random = cleaned_data.get('n_random_entries', 0)
+        if self.is_new:
+            cleaned_data = super(DataSetAdminForm, self).clean()
+            file = cleaned_data.get('upload_file', None)
+            n_random = cleaned_data.get('n_random_entries', 0)
 
-        gen_random = n_random > 0
-        has_file = file != None
+            gen_random = n_random > 0
+            has_file = file != None
         
-        if (gen_random == has_file):
-            raise forms.ValidationError("You must choose exactly one source for the data set. ")
+            if (gen_random == has_file):
+                raise forms.ValidationError("You must choose exactly one source for the data set. ")
         
-        # no uploaded file parsing yet. 
-        if has_file:
-            raise forms.ValidationError("Uploaded file parsing not yet available!")
+            # no uploaded file parsing yet. 
+            if has_file:
+                raise forms.ValidationError("Uploaded file parsing not yet available!")
 
     # Checks whether we are to parse an uploaded file
     # or to generate random entries. Then does it. 
@@ -89,21 +103,30 @@ class DataSetAdminForm(forms.ModelForm):
         # if we are here then exactly one of n_random, file would be non-default
         
         if n_random > 0:
-            DataSet.newTrain(self.instance.market, n_random)
+            DataSet.new_random(self.instance.market, n_random)
         else:
             pass    # nyi - see if clean throws a validation error
 
 
         return super(DataSetAdminForm, self).save(commit=commit)
-
+    
 
 class DataSetAdmin(admin.ModelAdmin):
     form = DataSetAdminForm
-    list_display = ('market', 'is_training', 'datum_count')
+    list_display = ('market', 'description', 'is_active', 'datum_count')
+    actions = ['reset', 'start']
+    def start(modeladmin, request, queryset):
+        if queryset.count() == 1:
+            queryset.first().start()
+        else:
+            print("tried to activate 0 or 2+ datasets")
+            
+    def reset(modeladmin, request, queryset):
+        for ds in queryset:
+            ds.reset()
 
     # sets the user for the DataSetAdminForm
     def get_form(self, request, *args, **kwargs):
-         print('get form')
          form = super(DataSetAdmin, self).get_form(request, **kwargs)
          form.user = request.user
          return form
@@ -115,7 +138,7 @@ class OutcomeInline(admin.StackedInline):
 class MarketAdmin(admin.ModelAdmin):
     form = MarketAdminForm
     inlines = [OutcomeInline]
-    list_display = ('description', 'pub_date', 'last_revealed_id')
+    list_display = ('description', 'pub_date')
     
     # gets the market we're saving from the inline stuff. 
     def save_model(self, request, obj, form, change):
@@ -138,13 +161,13 @@ class MarketAdmin(admin.ModelAdmin):
 # the following 3 classes are temporary admin views used for debugging
 # TODO: remove or make these usable
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('datum', 'claim', 'price', 'amount', 'timestamp')
+    list_display = ('datum', 'timestamp', 'is_processed')
 
 class OutcomeAdmin(admin.ModelAdmin):
     list_display = ('id', 'market', 'name', 'current_price')
 
 class DatumAdmin(admin.ModelAdmin):
-    list_display = ('x', 'y', 'setId', 'data_set')
+    list_display = ('x', 'y', 'set_id', 'data_set')
 
 # register the above classes with the admin interface. 
 admin.site.register(Market, MarketAdmin)

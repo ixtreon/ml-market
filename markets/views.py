@@ -18,7 +18,7 @@ def index(request):
         })
 
 class IndexView(generic.ListView):
-    template_name = 'index.html'
+    template_name = 'all-markets.html'
     context_object_name = 'markets'
     
     # returns all markets (no paging whatsoever)
@@ -40,7 +40,6 @@ def user_info(request):
 @login_required
 def market_view(request, pk):
     
-    
     market_id = int(pk)
     m = get_object_or_404(Market, id=market_id)
     try:
@@ -51,12 +50,10 @@ def market_view(request, pk):
     if request.method == 'POST' and a != None:
         # A POST request: Handle Form Upload
         form = MarketForm(m, a, post=request.POST) # Bind data from request.POST into a PostForm
-        outcome = Outcome.objects.get(id=form.claim)
-
-        # If data is valid, proceeds to create a new post and redirect the user
-        if form.validate():
-            print("valid form\nCreating order")
-            a.place_order(m, outcome, form.amount)
+        
+        ord = a.place_multi_order(m, form.position)
+        
+        form.orders.append(ord.get_data(m.outcome_set.all()))
     else:
         form = MarketForm(m, a)
 
@@ -75,6 +72,15 @@ def market_join(request, qid):
         a = Account(user=u, market=m, funds=100)
         a.save()
 
+    return HttpResponseRedirect(reverse('markets:market', args=(m.id,)))
+
+# Handles a user willing to discard a standing (!) order
+@login_required
+def order_remove(request, pk):
+    u = request.user
+    ord = get_object_or_404(Order, account__user=u, id=pk)
+    m = ord.account.market
+    ord.cancel()
     return HttpResponseRedirect(reverse('markets:market', args=(m.id,)))
 
 # handles users uploading files

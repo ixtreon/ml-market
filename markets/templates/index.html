@@ -1,27 +1,8 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block content %}
 
-<table border="1">
-<tr>
-    <th>Description</th>
-    <th>Date Started</th>
-    <th>Current Funds</th>
-</tr>
+<h1>Welcome to the ml-markets web application!</h1>
 
-{% if markets %}
-    {% for m in markets %}
-    <tr>
-        <td><a href="{% url 'markets:market' m.id %}">{{ m.description }}</a></td>
-        <td>{{ m.pub_date }}</td>
-        <td>NYI</td>
-    </tr>
-    {% endfor %}
-{% else %}
-    <tr>
-        <td colspan="3" align="center">No markets.</td>
-    </tr>
-{% endif %}
-</table>
-
+<p>TODO: finish this page. </p>
 {% endblock %}

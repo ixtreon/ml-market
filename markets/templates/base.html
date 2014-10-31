@@ -14,7 +14,7 @@
 <header id="nav">
     <table id="nav_bar">
         <tr>
-            <td><a href={% url "markets:markets" %}>Market Index</a></td>
+            <td><a href={% url "index" %}>Market Index</a></td>
             <td><a href={% url "markets:markets" %}>All Markets</a></td>
         </tr>
     </table>
@@ -28,6 +28,7 @@
     {% endif %}
     </p>
 </header>
+
 <div id="content">
     {% block content %}{% endblock %}
 </div>
