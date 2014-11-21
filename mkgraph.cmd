@@ -1,0 +1,1 @@
+python manage.py graph_models markets | dot -Tpng:cairo -o model_graph.png
