@@ -23,10 +23,10 @@ class Market(models.Model):
 
     pub_date = models.DateTimeField('Date Started')
 
+    is_active = models.BooleanField(default=False)
 
-    # gets the active dataset for this market, 
-    # if no active dataset, returns None. 
     def active_set(self):
+        "Gets the active dataset for this market, or None if the market is inactive. "
         try:
             return self.dataset_set.get(market=self, is_active=True)
         except ObjectDoesNotExist:
@@ -34,9 +34,8 @@ class Market(models.Model):
         except MultipleObjectsReturned:
             raise Exception("Too many active datasets! Invalid state?.. ")
 
-    # gets the account instance of this user for this market
-    # or None if the user has no account. 
     def get_user_account(self, u):
+        "Gets the user's account for this market, or None if they are not registered. "
         try:
             return u.account_set.get(market=self)
         except Account.DoesNotExist:
@@ -44,43 +43,11 @@ class Market(models.Model):
         except MultipleObjectsReturned:
             raise Exception("Too many accounts for this user! Invalid state?.. ")
 
+    def is_active(self):
+        return self.active_set() != None
+
     def __str__(self):
         return self.description
-
-    def was_published_recently(self):
-        return self.pub_date >= timezone.now() - datetime.timedelta(days=3)
-
-    # does sum to 1 for prices
-    def fix_outcomes(sender, **kwargs):
-        # get the outcomes from the market
-        market = kwargs['instance']
-        outcomes = list(market.outcome_set.all())
-        print('cleanup model %s' % (outcomes))
-        
-        pdf_total = Decimal(0)
-        pdf_invalid = False
-
-        invalid = market.outcome_set.all() .filter(current_price=0)
-
-        for o in outcomes:
-            if o.current_price == 0:
-                pdf_invalid = True
-                break
-            pdf_total += o.current_price
-
-        if pdf_invalid:
-            n_outcomes = len(outcomes)
-            for o in Outcome.objects.filter(market=market):
-                o.current_price = 1 / n_outcomes
-                o.save()
-        else:
-            pdf_left = Decimal(1)
-            for o in outcomes:
-                new_price = o.current_price / pdf_total
-                o.current_price = min(pdf_left, new_price)
-                pdf_left -= o.current_price
-                o.save()
-
 
     def save(self, *args, **kwargs):
         super(Market, self).save()
@@ -125,10 +92,46 @@ class Account(models.Model):
         print("wohoo, made an order!")
         return order
 
-
-# represents an outcome in a multiclass market. 
-class Outcome(models.Model):
+class Event(models.Model):
+    "A set of outcomes for a market. "
+    description = models.CharField(max_length=255, default='Some outcome set')
     market = models.ForeignKey(Market)
+
+    def fix_outcomes(self):
+        "Makes sure all outcomes sum to 1"
+        # get the outcomes from the market
+        outcomes = list(self.outcome_set.all())
+        
+        pdf_invalid = (self.outcome_set.filter(current_price=0).count() > 0)
+
+        if pdf_invalid:
+            n_outcomes = len(outcomes)
+            for o in self.outcome_set.all():
+                o.current_price = 1 / n_outcomes
+                o.save()
+        else:
+            pdf_total = sum(o.current_price for o in outcomes)
+            pdf_left = Decimal(1)   # make sure we never distribute more than 1
+            for o in outcomes:
+                new_price = o.current_price / pdf_total
+                o.current_price = min(pdf_left, new_price)
+                pdf_left -= o.current_price
+                # still possible to get a 0 here
+                o.save()
+
+    def random_outcome(self):
+        "Draws a random outcome from this set. "
+        outcomes = list(self.outcome_set.all())
+        n_outcomes = len(outcomes)
+        random_outcome_id = random.randint(0, n_outcomes-1)   # range is inclusive at both ends
+        return outcomes[random_outcome_id]
+
+    def __str__(self):
+        return "%s (%s)" % (self.description, self.market)
+
+# represents a single outcome in a multiclass market. 
+class Outcome(models.Model):
+    event = models.ForeignKey(Event, default=1)
 
     name = models.CharField(max_length=255)
     current_price = DecimalField()
@@ -139,35 +142,42 @@ class Outcome(models.Model):
 class DataSet(models.Model):
     # the market this dataset is for
     market = models.ForeignKey(Market)
+
     description = models.CharField(max_length=255, default='Add a description here. ')
+
     # whether the dataset is intended for training
     # currently unused in code
     is_training = models.BooleanField(default=False)
-    # whether the data set is active
-    # for the given market
+
+    # whether the data set is active for the given market
     is_active = models.BooleanField(default=False)
+
     # the count of datums
     # should not be set manually
     datum_count = models.IntegerField(default=0)
+
     # interval between consecutive challenges in days
     reveal_interval = models.IntegerField('Interval between challenges', default=7)
+
     # the id of the active datum
     active_datum_id = models.IntegerField(default=0)
-    # time when the active datum was revealed
-    active_datum_start = models.DateTimeField('Date last challenge was started', default=datetime.datetime.now())
 
-    # gets whether this dataset has any data in it
+    # time when the active datum was revealed
+    active_datum_start = models.DateTimeField('Date last challenge was started', default=datetime.datetime(2014,1,1))
+
     def has_data(self):
+        "Gets whether this dataset has any data in it. "
         assert (self.datum_set.count() == 0) == (self.datum_count == 0)
         return self.datum_count == 0
 
-    # gets whether there's a datum with this id. 
     def has_datum(self, id):
+        "Gets whether this DataSet contains a datum with the given id"
         has_it = self.datum_set.filter(id=id).count() > 0
         assert has_it == (id < self.active_datum_id)
         return has_it
 
     def active_datum(self):
+        "Gets the active datum using the active_datum id"
         try:
             return self.datum_set.get(set_id=self.active_datum_id)
         except ObjectDoesNotExist:
@@ -182,6 +192,8 @@ class DataSet(models.Model):
     # if there's another active dataset it is made inactive
     @transaction.atomic
     def start(self):
+        "Sets this DataSet as the active set for its market."
+        #If there is s"""
         ds = self.market.active_set()
         if ds != None:
             ds.is_active = False
@@ -190,17 +202,15 @@ class DataSet(models.Model):
         self.active_datum_start = timezone.now()
         self.save()
 
-    # sets self.active_datum_id = 0
-    # if no data, throw an exception
     def reset(self):
+        "Resets active_datum_id to 0. If there is no datum with id of 0, an exception is thrown. "
         if not self.has_data():
             raise Exception("No active challenge!")
         self.active_datum_id = 0
         self.save()
 
-    # should set active_datum_id to the next one
-    # if non-existing (corrupted db or last challenge) throw an exception
     def next_challenge(self):
+        "Increments active_datum_id by 1. If there is no datum with such id, an exception is thrown. "
         new_datum = self.active_datum_id + 1
         if not self.has_datum(new_datum):
             raise Exception("No next challenge!")
@@ -210,12 +220,11 @@ class DataSet(models.Model):
 
     # creates a new datum for this dataset and saves it
     def add_datum(self, x = "", y = None):
+        """Creates a new datum for this DataSet and saves it. 
+If y is not provided it is chosen randomly amongst """
         if y == None:
-            # generate a random outcome
-            outcomes = list(self.get_outcomes())
-            n_outcomes = len(outcomes)
-            random_outcome_id = random.randint(0, n_outcomes-1)   # range is inclusive at both ends
-            y = outcomes[random_outcome_id]
+            # generate random outcomes
+            
             print("Generated datum #%d with a random outcome: '%s'" % (self.datum_count, y))
         # TODO: check y is a member
 
@@ -230,6 +239,12 @@ class DataSet(models.Model):
             data_set = self)
         dat.save()
 
+    def random_datum(self, x = ""):
+        "Creates a new datum for this DataSet, picking a random outcome for each set, and saves it. "
+        
+        if x == "":
+            # generate a placeholder name
+            x = self.market.description + " " + str(self.datum_count)
     # generates a new dataset with n_datums data points
     # randomly chosen from all the market outcomes
     def new_random(m, n_datums=0):
@@ -245,7 +260,7 @@ class DataSet(models.Model):
         ds.save()
 
     # creates a new dataset from a file
-    # TODO: implement it; add schema as param?
+    # TODO: add schema as param?
     def new_from_file(market, file):
         pass
 
@@ -257,24 +272,34 @@ class Datum(models.Model):
     data_set = models.ForeignKey(DataSet)
     # the test data
     x = models.CharField(max_length=1024)
-    # the actual outcome for the event x
-    y = models.ForeignKey(Outcome)
+
     # the consecutive id of the datum in the set
     set_id = models.IntegerField()
 
     def __str__(self):
         return "datum #%d from %s" % (self.set_id, self.data_set)
 
+class Result(models.Model):
+    "The actual outcome of a given datum for the specified outcome_set"
+    datum = models.ForeignKey(Datum)
+    outcome = models.ForeignKey(Outcome)
+
 class Order(models.Model):
+    """A pending or already processed order from a user for some market"""
+
     # the account that made the order
     account = models.ForeignKey(Account)
     # for which dataset entry (datum) was the bet made
     datum = models.ForeignKey(Datum)
-    # when is the order made
+    # when was the order made
     timestamp = models.DateTimeField('Time created')
     # whether the order is processed
     is_processed = models.BooleanField(default=False)
-    # whether the order is cancelled
+
+    def unprocessed_orders():
+        return Order.objects.filter(is_processed=False)
+
+    # gets whether the order is cancelled
     def get_position(self, outcome):
         try:
             return self.position_set.get(outcome=outcome).amount
@@ -283,8 +308,10 @@ class Order(models.Model):
         except MultipleObjectsReturned:
             raise Exception("Too many positions for order %d! Invalid state?.. " % (self.id))
         
+    # TODO: does what?
     def get_data(self, outcomes):
         return (self, [self.get_position(out) for out in outcomes])
+
     # creates a new order for the given account playing on the given market. 
     # looks up the current challenge for that market
     # looks up its current price
@@ -306,8 +333,14 @@ class Order(models.Model):
 
     @transaction.atomic
     def new_multi(market, account, position):
+        "Creates a new multi-position order for the given account. "
+
         # get this market's active challenge
         dataset = market.active_set()
+        if not dataset:
+            # non-active markets should not be listed
+            raise Exception("No active dataset for this market!")
+
         datum = dataset.active_datum()
         # create the order
         order = Order(
@@ -328,6 +361,7 @@ class Order(models.Model):
 # represents a position on a given outcome
 # in the context of an order. 
 class Position(models.Model):
+    "A player's position (opinion) about a given outcome as part of an order. "
     # the order this position
     order = models.ForeignKey(Order)
     # what the claim was
@@ -348,8 +382,9 @@ class Position(models.Model):
     def get_cost(self, contract_price):
         return self.amount * contract_price
 
-# contains uploaded documents, as defined in settings.py
+# contains uploaded documents to be used as dataset sources. 
 class Document(models.Model):
+    "A document uploaded by the user to be potentially used as a dataset source. "
     user = models.ForeignKey(User)
     file = models.FileField(upload_to='uploads')
     

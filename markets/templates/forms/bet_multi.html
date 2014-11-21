@@ -7,26 +7,30 @@
     <p>
         <table border="1" id="outcome_table">
             <tr>
-                <th>Outcome</th>
-                <th>Price per Contract</th>
-                <th># Contracts</th>
+                <th>Event</th>
+                <th colspan="99">Outcomes</th>
             </tr>
-        {% for o in form.outcomes %}
-        <tr>
-            <td>
-            <label for="choice{{ o.id }}">{{ o.name }}</label><br />
-            </td>
-            <td align="right">
-                {{o.current_price}}
-            </td>
-            <td><input type="number" name="pos_{{o.id}}" class="amount" value="0" oninput="validate_amounts()"/></td>
-        </tr>
+        {% for e in form.events %}
+            <tr>
+                <th rowspan="2">
+                    {{ e.0 }}
+                </th>
+                {% for o in e.1 %}
+                    <td>
+                        {{ o.name }} 
+                        <br/>
+                        S: <b>{{o.current_price}}</b>
+                        <br/>
+                        <input type="number" id="{{o.id}}" name="pos_{{o.id}}" class="amount" value="0" oninput="validate_amounts()"/>
+                    </td>
+                {% endfor %}
+            </tr>
         {% endfor %}
 
         {# Total cost approximation #}
         <tr>
-            <th colspan="2">Approximated cost:</th>
-            <td><input type="number" name="total_cost" value="0" readonly/></td>
+            <th colspan="1">Estimated cost:</th>
+            <td><input type="text" name="total_cost" value="0" readonly/></td>
         </tr>
         </table>
         <label class="error">{{ form.errors.claim }}</label>
@@ -42,7 +46,7 @@
     {# js verification #}
     <script>
         var funds = {{ form.account.funds }}
-        var outcomes = {{ form.price_list }}
+        var prices = {{ form.prices|safe }}
     </script>
     <script>
         var btn_outcomes = $(".outcome")
@@ -50,6 +54,7 @@
         var btn_cost = $("[name=total_cost]")[0]
         var place_order = $("[type=submit]")[0]
         validate_amounts()
+
         function validate_amounts() {
             var sum = 0;
             for (i = 0; i < btn_amounts.length; ++i) {
@@ -57,7 +62,7 @@
                 if(a.value == "")
                     a.value = "0";
                 else
-                    sum += parseFloat(a.value) * outcomes[i];
+                    sum += parseFloat(a.value) * prices[a.id];
             }
             btn_cost.value = sum
             if(btn_cost.value == 0)

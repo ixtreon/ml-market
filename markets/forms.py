@@ -1,14 +1,16 @@
 from django import forms
-from markets.models import Market, Outcome, Order, Document
+from markets.models import Market, Outcome, Order, Document, Event
 from django.core import validators
 from _decimal import Decimal
 from django.forms import widgets
+import json
+from django.core.serializers.json import DjangoJSONEncoder
  
 class MarketForm(forms.Form):
     # the market this form is about
     market = None
     # all outcomes connected to that market
-    outcomes = None
+    events = None
     # the account the user is logged in with
     account = None
     # the (single bet) claim the user has selected 
@@ -46,30 +48,51 @@ class MarketForm(forms.Form):
 
         return len(self.errors) == 0 
 
-    
+    def get_json_data(self):
+        m = self.market
+        events = [e for e in Event.objects.filter(market=m).values_list('id', 'description')]
+        outcomes = [o for o in Outcome.objects.filter(event__market=m).values_list('event', 'name', 'current_price')]
+        d = { 
+            'events' : events,
+            'outcomes' : outcomes,
+            }
+        return json.dumps(d, cls=DjangoJSONEncoder)
+
+
+    def json_prices(self):
+        z = dict(Outcome.objects.filter(event__market=self.market).values_list('id', 'current_price'))
+        return json.dumps(z, cls=DjangoJSONEncoder)
+
+    # Gets the user order information
+    # from the POST request
+    def read_post_position(self, post):
+        pos = []
+        for ord in self.outcomes:
+            try:
+                ord_pos = int(post["pos_%i" % (ord.id)])
+            except:
+                ord_pos = 0
+
+            if ord_pos != 0:
+                print("user wants %d contracts for outcome %s" % (ord_pos, ord))
+                pos.append((ord, ord_pos))
+        return pos
 
     def __init__(self, market, account, *args, **kwargs):
         self.market = market
-        self.outcomes = market.outcome_set.all()
+        self.events = [ (e.description, e.outcome_set.all()) for e in market.event_set.all()]
+        self.outcomes = list(Outcome.objects.filter(event__market=self.market))
         self.account = account
-        # all orders the user has made so far
+        # get the outcome prices in json to pass to the template
+        self.prices = self.json_prices()
+
+        # get all the standing orders of the user
         self.orders = [ord.get_data(self.outcomes) for ord in account.standing_orders()]
-        # the current prices
-        self.price_list = "[%s];" % (", ".join([str(o.current_price) for o in self.outcomes]))
-        print(self.orders)
+
         if kwargs.get('post'):
             post = kwargs['post']
-            # get the user position
-            self.position = []
-            for o in self.outcomes:
-                k = "pos_%i" % (o.id)
-                try:
-                    v = int(post[k])
-                except:
-                    v = 0
-
-                print("user wants %d contracts for outcome %s" % (v, o))
-                self.position.append((o, v))
+            print(post)
+            self.position = self.read_post_position(post)
 
         super(MarketForm, self).__init__()
 

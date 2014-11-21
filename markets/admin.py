@@ -1,49 +1,47 @@
 from django.contrib import admin
-from markets.models import Market, Outcome, Order, DataSet, Datum, Document
+from markets.models import Market, Outcome, Order, DataSet, Datum, Document, Event, Result
 from django.forms.fields import IntegerField
 from django import forms
 from django.utils import timezone
-from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned, ValidationError
 # Register your models here.
 
 
 
 # the market admin form; 
-# right now it makes sure pub_date is set to today when we save a
+# right now it makes sure pub_date is set to today when we save a market
 class MarketAdminForm(forms.ModelForm):   
     class Meta:
         model = Market
         fields = ('description',) 
 
     user = None
+    
+    def clean(self):
+        cleaned_data = self.cleaned_data
 
-    #def clean_last_revealed_id(self):
-    #    # get the user-specified last-revealed id
-    #    data = self.cleaned_data['last_revealed_id']
-    #    try:    # as int
-    #        last_id = int(data)
-    #    except:
-    #        raise forms.ValidationError("This value must be an integer. ")
+        #n_outcomes = self.instance.outcome_set.count()
+        #if n_outcomes == 0:
+        #    raise ValidationError("KUR")
 
-    #    # check if there is such a challenge for any (!!) of this market's datasets. 
-    #    if last_id != -1:
-    #        try:
-    #            sets = Datum.objects.get(data_set__market=self.instance, setId=last_id)
-    #        except ObjectDoesNotExist:
-    #            raise forms.ValidationError("There is no such challenge for this market!")
-    #        except MultipleObjectsReturned:
-    #            raise Exception("Too many challenges with this id! Corrupted db?.. ")
-    #    return data
-
-    # if published_date is None 
+    # if published_date is None set it to today. 
     # (the default when creating a new market)
-    # set it to today. 
     def save(self, commit=True):
         market = super(MarketAdminForm, self).save(commit=False)
         if market.pub_date == None:
             market.pub_date = timezone.now()
         market.save(commit=commit)
         return market
+
+# The form used to create Outcome Sets
+# An outcome set can be either added manually
+# or (TODO) uploaded from a file. 
+class EventAdminForm(forms.ModelForm):
+    class Meta:
+        model = Event
+        fields = ('market', 'description',)
+
+
 
 
 # The form used to create DataSets. 
@@ -131,23 +129,45 @@ class DataSetAdmin(admin.ModelAdmin):
          form.user = request.user
          return form
      
-class OutcomeInline(admin.StackedInline):
+
+class OutcomeInline(admin.TabularInline):
     model = Outcome
     extra = 2
 
+class EventInline(admin.StackedInline):
+    form = EventAdminForm
+    model = Event
+    extra = 2
+
+# The market admin. 
+# Shows an inline form for outcomes 
+# and makes sure they exist and sum to one
 class MarketAdmin(admin.ModelAdmin):
     form = MarketAdminForm
-    inlines = [OutcomeInline]
     list_display = ('description', 'pub_date')
     
+
+# the following 3 classes are temporary admin views used for debugging
+# TODO: remove or make these usable
+class OrderAdmin(admin.ModelAdmin):
+    list_display = ('datum', 'timestamp', 'is_processed')
+    
+class OutcomeAdmin(admin.ModelAdmin):
+    list_display = ('name', 'set', 'current_price')
+
+class EventAdmin(admin.ModelAdmin):
+    form = EventAdminForm
+    inlines = [OutcomeInline]
+
     # gets the market we're saving from the inline stuff. 
     def save_model(self, request, obj, form, change):
-        print("saving the market...")
-        self.market = obj
+        print("saving the outcomes...")
+        self.instance = obj
         obj.save()
     
+
     # run whenever some subform is being saved. 
-    # in this case we want to handle the Outcome sub-form
+    # in this case we handle the Outcome sub-form
     # and make sure the outcomes starting prices sum to 1. 
     def save_formset(self, request, form, formset, change):
         print("saving the market forms..")
@@ -156,22 +176,20 @@ class MarketAdmin(admin.ModelAdmin):
         formset.save()
 
         print("fixing outcomes..")
-        Market.fix_outcomes(Market, instance=self.market)
-
-# the following 3 classes are temporary admin views used for debugging
-# TODO: remove or make these usable
-class OrderAdmin(admin.ModelAdmin):
-    list_display = ('datum', 'timestamp', 'is_processed')
-
-class OutcomeAdmin(admin.ModelAdmin):
-    list_display = ('id', 'market', 'name', 'current_price')
+        self.instance.fix_outcomes()
+        print("done!")
+        # Market.fix_outcomes(Market, instance=self.market)
 
 class DatumAdmin(admin.ModelAdmin):
-    list_display = ('x', 'y', 'set_id', 'data_set')
+    list_display = ('x', 'set_id', 'data_set')
+
+class ResultAdmin(admin.ModelAdmin):
+    list_display = ('datum', 'outcome')
 
 # register the above classes with the admin interface. 
 admin.site.register(Market, MarketAdmin)
 admin.site.register(Order, OrderAdmin)
-admin.site.register(Outcome, OutcomeAdmin)
+admin.site.register(Event, EventAdmin)
 admin.site.register(DataSet, DataSetAdmin)
 admin.site.register(Datum, DatumAdmin)
+admin.site.register(Result, ResultAdmin)

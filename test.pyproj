@@ -32,6 +32,9 @@
     <Compile Include="markets\forms.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="markets\management\commands\runmarket.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="markets\migrations\0001_initial.py" />
     <Compile Include="markets\migrations\__init__.py" />
     <Compile Include="markets\models.py" />
@@ -63,7 +66,9 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="markets\" />
+    <Folder Include="markets\management\commands\" />
     <Folder Include="markets\migrations\" />
+    <Folder Include="markets\management\" />
     <Folder Include="markets\templates\forms\" />
     <Folder Include="markets\uploads\" />
     <Folder Include="markets\static\" />
