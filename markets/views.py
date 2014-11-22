@@ -13,6 +13,7 @@ from markets.forms import MarketForm, UploadForm, UserForm
 def index(request):
 
     markets = Market.objects.order_by('-pub_date')[:15]
+
     return render(request, 'market/index.html', {
         'markets': markets,
         })
@@ -28,7 +29,6 @@ class IndexView(generic.ListView):
 
 
 # displays user information
-# TODO: user accounts
 @login_required
 def user_info(request):
     form = UserForm(request.user)

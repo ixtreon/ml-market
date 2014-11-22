@@ -70,10 +70,13 @@ class DataSetAdminForm(forms.ModelForm):
             # disable uploading new data if the set is already created. 
             self.fields['n_random_entries'].widget.attrs['readonly'] = True
             self.fields['upload_file'].widget.attrs['readonly'] = True
+            # disable market changing. 
+            self.fields['market'].queryset = Market.objects.filter(dataset=self.instance)
             self.is_new = False
         else:
             self.is_new = True
             self.fields['upload_file'].queryset = Document.objects.filter(user=self.user)
+            #self.fields['market'].queryset = Market.objects.filter(event_set__count>0)
 
     # check whether only one of random/file data sources is set
     def clean(self):
@@ -92,16 +95,11 @@ class DataSetAdminForm(forms.ModelForm):
             if has_file:
                 raise forms.ValidationError("Uploaded file parsing is not yet available!")
 
-    # Checks whether we are to parse an uploaded file
-    # or to generate random entries. Then does it. 
+
     def save(self, commit=True):
-        file = self.cleaned_data.get('upload_file', None)
+        self.file = self.cleaned_data.get('upload_file', None)
         self.n_random = self.cleaned_data.get('n_random_entries', 0)
-        # if we are here then exactly one of (n_random or upload_file) would be active
-        ds = super(DataSetAdminForm, self).save(commit=commit)
-
-
-        return ds
+        return super(DataSetAdminForm, self).save(commit=commit)
     
 
 class DataSetAdmin(admin.ModelAdmin):
@@ -126,14 +124,15 @@ class DataSetAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         obj.save()
-        if form.n_random > 0:
-            obj.new_random(form.n_random)
-        else:
-            pass    # TODO: handle parsing of uploaded files somehow. 
+        if form.is_new:
+            if form.n_random:
+                obj.new_random(form.n_random)
+            else:
+                assert(obj.file)
+                pass    # TODO: handle parsing of uploaded files somehow. 
 
     def save(self, *args, **kwargs):
         super(Model, self).save(*args, **kwargs)
-        print('save! wat')
      
 
 class OutcomeInline(admin.TabularInline):
@@ -150,10 +149,10 @@ class EventInline(admin.StackedInline):
 # and makes sure they exist and sum to one
 class MarketAdmin(admin.ModelAdmin):
     form = MarketAdminForm
-    list_display = ('description', 'pub_date')
+    list_display = ('description', 'pub_date', 'n_events', 'n_datasets')
     
 
-# the following 3 classes are temporary admin views used for debugging
+# the following classes are temporary admin views used for debugging
 # TODO: remove or make these usable
 class OrderAdmin(admin.ModelAdmin):
     list_display = ('datum', 'timestamp', 'is_processed')

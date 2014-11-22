@@ -32,8 +32,11 @@ class Market(models.Model):
         except MultipleObjectsReturned:
             raise Exception("Too many active datasets! Invalid state?.. ")
 
-    def active_markets():
-        return [m for m in Market.objects.all() if m.is_active()]
+    def n_events(self):
+        return Event.objects.filter(market=self).count()
+
+    def n_datasets(self):
+        return DataSet.objects.filter(market=self).count()
 
     def get_user_account(self, u):
         "Gets the user's account for this market, or None if they are not registered. "
@@ -275,12 +278,14 @@ class Datum(models.Model):
     set_id = models.IntegerField()
 
     def __str__(self):
-        return "datum #%d from %s" % (self.set_id, self.data_set)
+        return "%s'%d" % (self.data_set,self.set_id)
 
 class Result(models.Model):
     "The actual outcome of a given event for the specified datum. "
     datum = models.ForeignKey(Datum)
     outcome = models.ForeignKey(Outcome)
+    def __str__(self):
+        return "(%s) wins %s" % (self.outcome, self.datum)
 
 class Order(models.Model):
     """A pending or already processed order from a user for some market"""
