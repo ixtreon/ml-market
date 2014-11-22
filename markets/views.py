@@ -23,7 +23,7 @@ class IndexView(generic.ListView):
     
     # returns all markets (no paging whatsoever)
     def get_queryset(self):
-        return Market.objects.order_by('-pub_date')
+        return [m for m in Market.objects.order_by('-pub_date') if m.is_active()]
 
 
 

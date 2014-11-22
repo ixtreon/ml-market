@@ -23,8 +23,6 @@ class Market(models.Model):
 
     pub_date = models.DateTimeField('Date Started')
 
-    is_active = models.BooleanField(default=False)
-
     def active_set(self):
         "Gets the active dataset for this market, or None if the market is inactive. "
         try:
@@ -33,6 +31,9 @@ class Market(models.Model):
             return None
         except MultipleObjectsReturned:
             raise Exception("Too many active datasets! Invalid state?.. ")
+
+    def active_markets():
+        return [m for m in Market.objects.all() if m.is_active()]
 
     def get_user_account(self, u):
         "Gets the user's account for this market, or None if they are not registered. "
@@ -219,45 +220,42 @@ class DataSet(models.Model):
         self.save()
 
     # creates a new datum for this dataset and saves it
-    def add_datum(self, x = "", y = None):
-        """Creates a new datum for this DataSet and saves it. 
-If y is not provided it is chosen randomly amongst """
-        if y == None:
-            # generate random outcomes
-            
-            print("Generated datum #%d with a random outcome: '%s'" % (self.datum_count, y))
-        # TODO: check y is a member
+    def random_datum(self, x = ""):
+        """Creates a new random datum for this DataSet and saves it. 
+Generates a random result for each event in the DataSet market. """
 
-        if x == "":
-            # generate a placeholder name
-            x = self.market.description + " " + str(self.datum_count)
+        if not x: # generate a placeholder name
+            x = self.description + " " + str(self.datum_count)
 
         dat = Datum(
             x = x,
-            y = y,
             set_id = self.datum_count,
             data_set = self)
         dat.save()
 
-    def random_datum(self, x = ""):
-        "Creates a new datum for this DataSet, picking a random outcome for each set, and saves it. "
-        
-        if x == "":
-            # generate a placeholder name
-            x = self.market.description + " " + str(self.datum_count)
+        # generate random outcomes for each event
+        es = self.market.event_set.all()
+        for e in es:
+            o = e.random_outcome()
+            r = Result(
+                datum=dat,
+                outcome=o)
+            r.save()
+
+
     # generates a new dataset with n_datums data points
-    # randomly chosen from all the market outcomes
-    def new_random(m, n_datums=0):
-        ds = DataSet(
-            market = m,
-            is_training = True)
-        ds.save()
+    # each specifying a random outcome for each event in this market. 
+    # Finally saves the dataset. 
+    def new_random(self, n_datums=0):
+
+        if n_datums <= 0:
+            raise ValueError("n_datums must be positive!")
 
         for i in range(n_datums):
-            dat = ds.add_datum()
+            dat = self.random_datum()
             # don't forget to increase the count of data points
-            ds.datum_count += 1
-        ds.save()
+            self.datum_count += 1
+        self.save()
 
     # creates a new dataset from a file
     # TODO: add schema as param?
@@ -280,7 +278,7 @@ class Datum(models.Model):
         return "datum #%d from %s" % (self.set_id, self.data_set)
 
 class Result(models.Model):
-    "The actual outcome of a given datum for the specified outcome_set"
+    "The actual outcome of a given event for the specified datum. "
     datum = models.ForeignKey(Datum)
     outcome = models.ForeignKey(Outcome)
 

@@ -44,7 +44,7 @@ class EventAdminForm(forms.ModelForm):
 
 
 
-# The form used to create DataSets. 
+# The form used to create and edit DataSets. 
 # A dataset can be created either from an uploaded file
 # or generated randomly. 
 class DataSetAdminForm(forms.ModelForm):
@@ -62,16 +62,15 @@ class DataSetAdminForm(forms.ModelForm):
     # the uploaded file to use as an input. 
     upload_file = forms.ModelChoiceField(queryset=Document.objects.none(), empty_label='None', required=False)
 
-
     # gets the files this user has uploaded
     # also removes the upload buttons if editing a set
     def __init__(self, *args, **kwargs):
         super(DataSetAdminForm, self).__init__(*args, **kwargs)
-        if self.instance.id:
+        if self.instance.id:    
+            # disable uploading new data if the set is already created. 
             self.fields['n_random_entries'].widget.attrs['readonly'] = True
             self.fields['upload_file'].widget.attrs['readonly'] = True
             self.is_new = False
-            print(self.fields)
         else:
             self.is_new = True
             self.fields['upload_file'].queryset = Document.objects.filter(user=self.user)
@@ -87,26 +86,22 @@ class DataSetAdminForm(forms.ModelForm):
             has_file = file != None
         
             if (gen_random == has_file):
-                raise forms.ValidationError("You must choose exactly one source for the data set. ")
+                raise forms.ValidationError("You must choose exactly one data source for the set. ")
         
             # no uploaded file parsing yet. 
             if has_file:
-                raise forms.ValidationError("Uploaded file parsing not yet available!")
+                raise forms.ValidationError("Uploaded file parsing is not yet available!")
 
     # Checks whether we are to parse an uploaded file
     # or to generate random entries. Then does it. 
     def save(self, commit=True):
         file = self.cleaned_data.get('upload_file', None)
-        n_random = self.cleaned_data.get('n_random_entries', 0)
-        # if we are here then exactly one of n_random, file would be non-default
-        
-        if n_random > 0:
-            DataSet.new_random(self.instance.market, n_random)
-        else:
-            pass    # nyi - see if clean throws a validation error
+        self.n_random = self.cleaned_data.get('n_random_entries', 0)
+        # if we are here then exactly one of (n_random or upload_file) would be active
+        ds = super(DataSetAdminForm, self).save(commit=commit)
 
 
-        return super(DataSetAdminForm, self).save(commit=commit)
+        return ds
     
 
 class DataSetAdmin(admin.ModelAdmin):
@@ -128,6 +123,17 @@ class DataSetAdmin(admin.ModelAdmin):
          form = super(DataSetAdmin, self).get_form(request, **kwargs)
          form.user = request.user
          return form
+
+    def save_model(self, request, obj, form, change):
+        obj.save()
+        if form.n_random > 0:
+            obj.new_random(form.n_random)
+        else:
+            pass    # TODO: handle parsing of uploaded files somehow. 
+
+    def save(self, *args, **kwargs):
+        super(Model, self).save(*args, **kwargs)
+        print('save! wat')
      
 
 class OutcomeInline(admin.TabularInline):
