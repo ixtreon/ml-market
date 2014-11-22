@@ -4,8 +4,6 @@ from django.forms.fields import IntegerField
 from django import forms
 from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned, ValidationError
-# Register your models here.
-
 
 
 # the market admin form; 
@@ -33,6 +31,14 @@ class MarketAdminForm(forms.ModelForm):
         market.save(commit=commit)
         return market
 
+# The market admin. 
+# Shows an inline form for outcomes 
+# and makes sure they exist and sum to one
+class MarketAdmin(admin.ModelAdmin):
+    form = MarketAdminForm
+    list_display = ('description', 'n_events', 'n_datasets', 'is_active')
+
+
 # The form used to create Outcome Sets
 # An outcome set can be either added manually
 # or (TODO) uploaded from a file. 
@@ -40,8 +46,37 @@ class EventAdminForm(forms.ModelForm):
     class Meta:
         model = Event
         fields = ('market', 'description',)
+    
+# The admin interface for events. 
+# Makes sure inline outcomes are normalized. 
+class EventAdmin(admin.ModelAdmin):
+    class OutcomeInline(admin.TabularInline):
+        model = Outcome
+        extra = 2
+    form = EventAdminForm
+    inlines = [OutcomeInline]
 
+    # save the instance to this admin
+    # used later to normalize the prices. 
+    def save_model(self, request, obj, form, change):
+        print("saving the outcomes...")
+        self.instance = obj
+        obj.save()
+    
 
+    # run whenever some subform is being saved. 
+    # in this case we handle the Outcome sub-form
+    # and make sure the outcomes starting prices sum to 1. 
+    def save_formset(self, request, form, formset, change):
+        print("saving the market forms..")
+        if formset.model != Outcome:
+            return super(MarketAdmin, self).save_formset(request, form, formset, change)
+        formset.save()
+
+        print("fixing outcomes..")
+        self.instance.fix_outcomes()
+        print("done!")
+        # Market.fix_outcomes(Market, instance=self.market)
 
 
 # The form used to create and edit DataSets. 
@@ -50,12 +85,10 @@ class EventAdminForm(forms.ModelForm):
 class DataSetAdminForm(forms.ModelForm):
     class Meta:
         model = DataSet
-        fields = (
-            'market', 
-            'description',
-            'reveal_interval',
-            'is_training', 
-            )
+        fields = ('market', 
+                'description',
+                'reveal_interval',
+                'is_training',)
     # the amount of random entries to generate. 
     # if <= 0, then no random entries are generated. 
     n_random_entries = forms.IntegerField(initial=0, required=False)
@@ -78,6 +111,16 @@ class DataSetAdminForm(forms.ModelForm):
             self.fields['upload_file'].queryset = Document.objects.filter(user=self.user)
             #self.fields['market'].queryset = Market.objects.filter(event_set__count>0)
 
+    def clean_market(self):
+        if self.is_new:
+            market = self.cleaned_data.get('market', 0)
+            # raise error if trying to add a dataset for an empty market
+            # (a market with no events)
+            event_count = market.event_set.count()
+            if event_count == 0:
+                raise forms.ValidationError("The current market has no events!")
+
+
     # check whether only one of random/file data sources is set
     def clean(self):
         if self.is_new:
@@ -92,8 +135,13 @@ class DataSetAdminForm(forms.ModelForm):
                 raise forms.ValidationError("You must choose exactly one data source for the set. ")
         
             # no uploaded file parsing yet. 
+            # TODO: check uploaded file's schema 
+            # and raise error if it doesn't match events
             if has_file:
                 raise forms.ValidationError("Uploaded file parsing is not yet available!")
+
+
+
 
 
     def save(self, commit=True):
@@ -101,9 +149,16 @@ class DataSetAdminForm(forms.ModelForm):
         self.n_random = self.cleaned_data.get('n_random_entries', 0)
         return super(DataSetAdminForm, self).save(commit=commit)
     
-
 class DataSetAdmin(admin.ModelAdmin):
     form = DataSetAdminForm
+
+    fieldsets = [
+        (None,               {'fields': ['market', 
+            'description',
+            'reveal_interval',
+            'is_training', ]}),
+        ('Data Source', {'fields': ['n_random_entries', 'upload_file']}),
+    ]
     list_display = ('market', 'description', 'is_active', 'datum_count')
     actions = ['reset', 'start']
     def start(modeladmin, request, queryset):
@@ -135,55 +190,14 @@ class DataSetAdmin(admin.ModelAdmin):
         super(Model, self).save(*args, **kwargs)
      
 
-class OutcomeInline(admin.TabularInline):
-    model = Outcome
-    extra = 2
-
-class EventInline(admin.StackedInline):
-    form = EventAdminForm
-    model = Event
-    extra = 2
-
-# The market admin. 
-# Shows an inline form for outcomes 
-# and makes sure they exist and sum to one
-class MarketAdmin(admin.ModelAdmin):
-    form = MarketAdminForm
-    list_display = ('description', 'pub_date', 'n_events', 'n_datasets')
     
-
 # the following classes are temporary admin views used for debugging
-# TODO: remove or make these usable
+# TODO: either remove or make these usable
 class OrderAdmin(admin.ModelAdmin):
     list_display = ('datum', 'timestamp', 'is_processed')
     
 class OutcomeAdmin(admin.ModelAdmin):
     list_display = ('name', 'set', 'current_price')
-
-class EventAdmin(admin.ModelAdmin):
-    form = EventAdminForm
-    inlines = [OutcomeInline]
-
-    # gets the market we're saving from the inline stuff. 
-    def save_model(self, request, obj, form, change):
-        print("saving the outcomes...")
-        self.instance = obj
-        obj.save()
-    
-
-    # run whenever some subform is being saved. 
-    # in this case we handle the Outcome sub-form
-    # and make sure the outcomes starting prices sum to 1. 
-    def save_formset(self, request, form, formset, change):
-        print("saving the market forms..")
-        if formset.model != Outcome:
-            return super(MarketAdmin, self).save_formset(request, form, formset, change)
-        formset.save()
-
-        print("fixing outcomes..")
-        self.instance.fix_outcomes()
-        print("done!")
-        # Market.fix_outcomes(Market, instance=self.market)
 
 class DatumAdmin(admin.ModelAdmin):
     list_display = ('x', 'set_id', 'data_set')
