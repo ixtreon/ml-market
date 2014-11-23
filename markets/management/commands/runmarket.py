@@ -22,3 +22,12 @@ class Command(BaseCommand):
         ords = Order.unprocessed_orders()
         if ords.count() > 0:
             print("qj kur: " + str(len(ords)))
+
+from django.core.signals import request_finished
+
+def my_callback(sender, **kwargs):
+    print("Request finished!")
+
+request_finished.connect(my_callback)
+
+z = input("enter to exit")

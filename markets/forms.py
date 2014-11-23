@@ -74,7 +74,6 @@ class MarketForm(forms.Form):
                 ord_pos = 0
 
             if ord_pos != 0:
-                print("user wants %d contracts for outcome %s" % (ord_pos, ord))
                 pos.append((ord, ord_pos))
         return pos
 
@@ -91,7 +90,6 @@ class MarketForm(forms.Form):
 
         if kwargs.get('post'):
             post = kwargs['post']
-            print(post)
             self.position = self.read_post_position(post)
 
         super(MarketForm, self).__init__()

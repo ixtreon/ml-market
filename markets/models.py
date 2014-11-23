@@ -3,7 +3,7 @@ from django.db import models, transaction
 from django.utils import timezone
 from django.contrib.auth.models import User
 from django.dispatch import receiver
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_init
 from _decimal import Decimal
 import django
 import math
@@ -11,6 +11,7 @@ import os
 import django.core.exceptions
 import random
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
+from markets.signals import order_placed
 
 def DecimalField():
     return models.DecimalField(default=0, decimal_places=2, max_digits=7)
@@ -76,15 +77,15 @@ class Account(models.Model):
     def standing_orders(self):
         return self.order_set.all()
 
-    @transaction.atomic
-    def place_single_order(self, market, outcome, amount):
-        try:
-            order = Order.new_single(market, self, outcome, amount)
-        except Exception as err:
-            raise Exception("failed creating an order: " + str(err))
+    #@transaction.atomic
+    #def place_single_order(self, market, outcome, amount):
+    #    try:
+    #        order = Order.new_single(market, self, outcome, amount)
+    #    except Exception as err:
+    #        raise Exception("failed creating an order: " + str(err))
         
-        print("wohoo, made an order!")
-        return order
+    #    print("wohoo, made an order!")
+    #    return order
 
     @transaction.atomic
     def place_multi_order(self, market, position):
@@ -93,7 +94,7 @@ class Account(models.Model):
         except Exception as err:
             raise Exception("failed creating an order: " + str(err))
         
-        print("wohoo, made an order!")
+        order_placed.send(sender=self, order=order)
         return order
 
 class Event(models.Model):
@@ -139,6 +140,9 @@ class Outcome(models.Model):
 
     name = models.CharField(max_length=255)
     current_price = DecimalField()
+
+    sell_offer = DecimalField()
+    buy_offer = DecimalField()
 
     def __str__(self):
         return self.name + " : " + str(self.current_price)
@@ -299,6 +303,8 @@ class Order(models.Model):
     # whether the order is processed
     is_processed = models.BooleanField(default=False)
 
+    is_successful = models.BooleanField(default=False)
+
     def unprocessed_orders():
         return Order.objects.filter(is_processed=False)
 
@@ -311,7 +317,8 @@ class Order(models.Model):
         except MultipleObjectsReturned:
             raise Exception("Too many positions for order %d! Invalid state?.. " % (self.id))
         
-    # TODO: does what?
+    # Gets the order along with a list of the order's position
+    # for all the selected outcomes. 
     def get_data(self, outcomes):
         return (self, [self.get_position(out) for out in outcomes])
 
@@ -384,6 +391,9 @@ class Position(models.Model):
     # gets the total cost for this position. 
     def get_cost(self, contract_price):
         return self.amount * contract_price
+
+    def __str__(self):
+        return "%d tokens for %s" % (self.amount, self.outcome)
 
 # contains uploaded documents to be used as dataset sources. 
 class Document(models.Model):

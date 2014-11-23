@@ -50,10 +50,10 @@ def market_view(request, pk):
     if request.method == 'POST' and a != None:
         # A POST request: Handle Form Upload
         form = MarketForm(m, a, post=request.POST) # Bind data from request.POST into a form
-        
+        # place the order
         ord = a.place_multi_order(m, form.position)
-        
-        form.orders.append(ord.get_data(m.outcome_set.all()))
+        # adds the newly created order to the form before displaying it. 
+        form.orders.append(ord.get_data(form.outcomes))
     else:
         form = MarketForm(m, a)
 

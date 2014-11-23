@@ -1,5 +1,5 @@
-from django.contrib import admin
-from markets.models import Market, Outcome, Order, DataSet, Datum, Document, Event, Result
+from django.contrib import admin, messages
+from markets.models import Market, Outcome, Order, DataSet, Datum, Document, Event, Result, Position
 from django.forms.fields import IntegerField
 from django import forms
 from django.utils import timezone
@@ -141,9 +141,6 @@ class DataSetAdminForm(forms.ModelForm):
                 raise forms.ValidationError("Uploaded file parsing is not yet available!")
 
 
-
-
-
     def save(self, commit=True):
         self.file = self.cleaned_data.get('upload_file', None)
         self.n_random = self.cleaned_data.get('n_random_entries', 0)
@@ -161,11 +158,14 @@ class DataSetAdmin(admin.ModelAdmin):
     ]
     list_display = ('market', 'description', 'is_active', 'datum_count')
     actions = ['reset', 'start']
+
     def start(modeladmin, request, queryset):
-        if queryset.count() == 1:
-            queryset.first().start()
-        else:
-            print("tried to activate 0 or 2+ datasets")
+        "Starts the selected dataset. "
+        if queryset.count() != 1:
+            modeladmin.message_user(request, "Please select a single data set!", level=messages.ERROR)
+        queryset.first().start()
+        # todo: set start, next dates?
+
             
     def reset(modeladmin, request, queryset):
         for ds in queryset:
@@ -195,6 +195,9 @@ class DataSetAdmin(admin.ModelAdmin):
 # TODO: either remove or make these usable
 class OrderAdmin(admin.ModelAdmin):
     list_display = ('datum', 'timestamp', 'is_processed')
+
+class PositionAdmin(admin.ModelAdmin):
+    list_display = ('order', 'outcome', 'amount', 'contract_price')
     
 class OutcomeAdmin(admin.ModelAdmin):
     list_display = ('name', 'set', 'current_price')
@@ -211,4 +214,5 @@ admin.site.register(Order, OrderAdmin)
 admin.site.register(Event, EventAdmin)
 admin.site.register(DataSet, DataSetAdmin)
 admin.site.register(Datum, DatumAdmin)
+admin.site.register(Position, PositionAdmin)
 admin.site.register(Result, ResultAdmin)

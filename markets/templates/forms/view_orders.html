@@ -6,17 +6,27 @@
             {% for o in form.outcomes %}
             <th>{{ o.name }}</th>
             {% endfor %}
+            <th>Processed?</th>
+            <th>Successful?</th>
             <th>Cancel?</th>
         </tr>
     {% for ord, positions in form.orders %}
     <tr>
         <td>{{ ord.timestamp }}</td>
+
         {% for pos in positions %}
         <td>{{ pos }}</td>
         {% endfor %}
-        <td><form action="{% url 'markets:remove_order' ord.id %}" method="get">
+
+        <td>{{ ord.is_processed }}</td>
+
+        <td>{{ ord.is_successful }}</td>
+
+        <td>{% if not ord.is_processed %}
+        <form action="{% url 'markets:remove_order' ord.id %}" method="get">
             <input type="submit" value="Cancel" />
-        </form></td>
+        </form>
+        {% endif %}</td>
     </tr>
     {% endfor %}
     </table>

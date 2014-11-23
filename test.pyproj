@@ -29,15 +29,24 @@
   <ItemGroup>
     <Compile Include="manage.py" />
     <Compile Include="markets\admin.py" />
+    <Compile Include="markets\apps.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="markets\forms.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="markets\management\commands\runmarket.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="msr_maker\msrmaker.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="markets\migrations\0001_initial.py" />
     <Compile Include="markets\migrations\__init__.py" />
     <Compile Include="markets\models.py" />
+    <Compile Include="markets\signals.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="markets\tests.py" />
     <Compile Include="markets\urls.py" />
     <Compile Include="markets\views.py" />
@@ -46,6 +55,8 @@
     <Compile Include="mainsite\urls.py" />
     <Compile Include="mainsite\wsgi.py" />
     <Compile Include="mainsite\__init__.py" />
+    <Compile Include="msr_maker\models.py" />
+    <Compile Include="msr_maker\__init__.py" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="markets\templates\index.html" />
@@ -79,6 +90,7 @@
     <Folder Include="mainsite\" />
     <Folder Include="mainsite\templates\" />
     <Folder Include="mainsite\templates\admin\" />
+    <Folder Include="msr_maker\" />
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="{9a7a9026-48c1-4688-9d5d-e5699d47d074}\3.4" />
