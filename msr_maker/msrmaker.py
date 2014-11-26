@@ -17,7 +17,7 @@ def log_C(b, supply):
 class MSRMaker():
         
     def get_ev_pos(ord):
-        "Gets all positions in the given order and groups them by their event. "
+        "Gets all positions in the given order and keys them by their event. "
         all_ps = list(ord.position_set.all())
 
         get_ev = lambda p: p.outcome.event

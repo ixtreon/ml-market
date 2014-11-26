@@ -10,8 +10,11 @@ class MarketConfig(AppConfig):
 
     def ready(self):
         pass
-        #MyModel = self.get_model('MyModel')
-        
-        self.market_maker = MSRMaker()
 
+        # attach a market maker to this instance. 
+        self.market_maker = MSRMaker()
         self.market_maker.connect()
+
+
+        # update challenges that completed while we dead
+        # schedule challenge update times

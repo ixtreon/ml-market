@@ -32,23 +32,28 @@ class MarketForm(forms.Form):
     def validate(self):
         self.errors = {}
 
-    #    # check if claim is non-null and a valid one. 
-    #    if self.claim == None:
-    #        self.errors['claim'] = "Please select a claim. "
-    #    elif self.market.outcome_set.filter(id=self.claim).count() != 1:
-    #        self.errors['claim'] = 'Please select a valid claim. '
+        # TODO: restore server-side validation
+        # Note this doesn't break anything as even if someone submits an forged order
+        # it's going to be validated by the market maker anyway. 
 
-    #    # check if amount is non-null, valid and not greater than current funds
-    #    if self.amount == None:
-    #        self.errors['amount'] = "Please select the amount to bet. "
-    #    elif self.amount > self.account.funds:
-    #        self.errors["amount"] = "You've bet more than you have!"
-    #    elif self.amount < 0:
-    #        pass    # for now
+        #    # check if claim is non-null and a valid one. 
+        #    if self.claim == None:
+        #        self.errors['claim'] = "Please select a claim. "
+        #    elif self.market.outcome_set.filter(id=self.claim).count() != 1:
+        #        self.errors['claim'] = 'Please select a valid claim. '
+
+        #    # check if amount is non-null, valid and not greater than current funds
+        #    if self.amount == None:
+        #        self.errors['amount'] = "Please select the amount to bet. "
+        #    elif self.amount > self.account.funds:
+        #        self.errors["amount"] = "You've bet more than you have!"
+        #    elif self.amount < 0:
+        #        pass    # for now
 
         return len(self.errors) == 0 
 
     def get_json_data(self):
+        "Gets the events and outcomes in json format to serve to the user. "
         m = self.market
         events = [e for e in Event.objects.filter(market=m).values_list('id', 'description')]
         outcomes = [o for o in Outcome.objects.filter(event__market=m).values_list('event', 'name', 'current_price')]
@@ -60,6 +65,7 @@ class MarketForm(forms.Form):
 
 
     def json_prices(self):
+        "Gets the outcomes' current prices in json format. "
         z = dict(Outcome.objects.filter(event__market=self.market).values_list('id', 'current_price'))
         return json.dumps(z, cls=DjangoJSONEncoder)
 
@@ -82,6 +88,7 @@ class MarketForm(forms.Form):
         self.events = [ (e.description, e.outcome_set.all()) for e in market.event_set.all()]
         self.outcomes = list(Outcome.objects.filter(event__market=self.market))
         self.account = account
+
         # get the outcome prices in json to pass to the template
         self.prices = self.json_prices()
 
