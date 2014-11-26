@@ -32,6 +32,9 @@
     <Compile Include="markets\apps.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="markets\cron.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="markets\forms.py">
       <SubType>Code</SubType>
     </Compile>
