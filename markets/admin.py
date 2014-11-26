@@ -7,7 +7,8 @@ from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned, 
 
 
 # the market admin form; 
-# right now it makes sure pub_date is set to today when we save a market
+# right now it makes sure pub_date is set to today
+# when a market is saved in the admin
 class MarketAdminForm(forms.ModelForm):   
     class Meta:
         model = Market
@@ -90,7 +91,6 @@ class DataSetAdminForm(forms.ModelForm):
                 'reveal_interval',
                 'is_training',)
     # the amount of random entries to generate. 
-    # if <= 0, then no random entries are generated. 
     n_random_entries = forms.IntegerField(initial=0, required=False)
     # the uploaded file to use as an input. 
     upload_file = forms.ModelChoiceField(queryset=Document.objects.none(), empty_label='None', required=False)
@@ -99,18 +99,19 @@ class DataSetAdminForm(forms.ModelForm):
     # also removes the upload buttons if editing a set
     def __init__(self, *args, **kwargs):
         super(DataSetAdminForm, self).__init__(*args, **kwargs)
-        if self.instance.id:    
-            # disable uploading new data if the set is already created. 
+        if self.instance.id:    # if the set is already created
+            # disable uploading new data
             self.fields['n_random_entries'].widget.attrs['readonly'] = True
             self.fields['upload_file'].widget.attrs['readonly'] = True
-            # disable market changing. 
+            # disable market changing
             self.fields['market'].queryset = Market.objects.filter(dataset=self.instance)
             self.is_new = False
         else:
             self.is_new = True
             self.fields['upload_file'].queryset = Document.objects.filter(user=self.user)
-            #self.fields['market'].queryset = Market.objects.filter(event_set__count>0)
 
+    # makes sure the selected market has events
+    # only checked for new datasets as existing ones can't have their market changed. 
     def clean_market(self):
         if self.is_new:
             market = self.cleaned_data.get('market', 0)
@@ -119,7 +120,6 @@ class DataSetAdminForm(forms.ModelForm):
             event_count = market.event_set.count()
             if event_count == 0:
                 raise forms.ValidationError("The current market has no events!")
-
 
     # check whether only one of random/file data sources is set
     def clean(self):
@@ -140,7 +140,7 @@ class DataSetAdminForm(forms.ModelForm):
             if has_file:
                 raise forms.ValidationError("Uploaded file parsing is not yet available!")
 
-
+    # save the cleaned data to the form
     def save(self, commit=True):
         self.file = self.cleaned_data.get('upload_file', None)
         self.n_random = self.cleaned_data.get('n_random_entries', 0)
@@ -150,23 +150,27 @@ class DataSetAdmin(admin.ModelAdmin):
     form = DataSetAdminForm
 
     fieldsets = [
-        (None,               {'fields': ['market', 
+        (None,  {'fields': ['market', 
             'description',
             'reveal_interval',
             'is_training', ]}),
         ('Data Source', {'fields': ['n_random_entries', 'upload_file']}),
     ]
     list_display = ('market', 'description', 'is_active', 'datum_count')
+
     actions = ['reset', 'start']
 
     def start(modeladmin, request, queryset):
         "Starts the selected dataset. "
         if queryset.count() != 1:
             modeladmin.message_user(request, "Please select a single data set!", level=messages.ERROR)
-        queryset.first().start()
-        # todo: set start, next dates?
+        ds = queryset.first()
+        
+        ds.active_datum_start = timezone.now()
+        ds.start()
 
-            
+    # admin action to reset the dataset
+    # todo: what about already collected data?
     def reset(modeladmin, request, queryset):
         for ds in queryset:
             ds.reset()
@@ -176,7 +180,9 @@ class DataSetAdmin(admin.ModelAdmin):
          form = super(DataSetAdmin, self).get_form(request, **kwargs)
          form.user = request.user
          return form
-
+    
+    # generate random data or import it from a file
+    # whenever a new model is saved/created
     def save_model(self, request, obj, form, change):
         obj.save()
         if form.is_new:
@@ -186,9 +192,6 @@ class DataSetAdmin(admin.ModelAdmin):
                 assert(obj.file)
                 pass    # TODO: handle parsing of uploaded files somehow. 
 
-    def save(self, *args, **kwargs):
-        super(Model, self).save(*args, **kwargs)
-     
 
     
 # the following classes are temporary admin views used for debugging
