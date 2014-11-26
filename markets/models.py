@@ -175,7 +175,11 @@ class DataSet(models.Model):
     active_datum_id = models.IntegerField(default=0)
 
     # time when the active datum was revealed
-    active_datum_start = models.DateTimeField('Date last challenge was started', default=datetime.datetime(2014,1,1))
+    challenge_start = models.DateTimeField('Date last challenge was started', default=datetime.datetime(2014,1,1))
+
+
+    def challenge_end(self):
+        return self.challenge_start + datetime.timedelta(days=self.reveal_interval)
 
     def has_data(self):
         "Gets whether this dataset has any data in it. "
@@ -209,7 +213,7 @@ class DataSet(models.Model):
             ds.is_active = False
             ds.save()
         self.is_active = True
-        self.active_datum_start = timezone.now()
+        self.challenge_start = timezone.now()
         self.save()
 
     def reset(self):
@@ -225,7 +229,7 @@ class DataSet(models.Model):
         if not self.has_datum(new_datum):
             raise Exception("No next challenge!")
         self.active_datum_id = new_datum
-        self.active_datum_start = timezone.now()
+        self.challenge_start = timezone.now()
         self.save()
 
     # creates a new datum for this dataset and saves it

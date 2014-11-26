@@ -166,7 +166,7 @@ class DataSetAdmin(admin.ModelAdmin):
             modeladmin.message_user(request, "Please select a single data set!", level=messages.ERROR)
         ds = queryset.first()
         
-        ds.active_datum_start = timezone.now()
+        ds.challenge_start = timezone.now()
         ds.start()
 
     # admin action to reset the dataset
