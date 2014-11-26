@@ -20,7 +20,7 @@ class Supply(models.Model):
         return sup
 
     def for_event(ev):
-        return [Supply.get(out) for out in ev.outcome_set.all()]
+        return { out: Supply.get(out) for s in ev.outcome_set.all() }
 
     #def event_amounts(ev):
     #    return [float(s.amount) for s in Supply.for_event(ev)]

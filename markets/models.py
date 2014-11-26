@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.contrib.auth.models import User
 from django.dispatch import receiver
 from django.db.models.signals import post_save, pre_init
-from _decimal import Decimal
+from decimal import Decimal, getcontext
 import django
 import math
 import os
@@ -12,7 +12,10 @@ import django.core.exceptions
 import random
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from markets.signals import order_placed
+from _decimal import Context
 
+def to_decimal(f):
+    return Decimal(f, Context(prec=2))
 def DecimalField():
     return models.DecimalField(default=0, decimal_places=2, max_digits=7)
 
@@ -50,6 +53,7 @@ class Market(models.Model):
 
     def is_active(self):
         return self.active_set() != None
+    is_active.boolean = True
 
     def __str__(self):
         return self.description
@@ -196,12 +200,10 @@ class DataSet(models.Model):
     def get_outcomes(self):
         return self.market.outcome_set.all()
 
-    # sets itself as the active dataset
-    # if there's another active dataset it is made inactive
     @transaction.atomic
     def start(self):
         "Sets this DataSet as the active set for its market."
-        #If there is s"""
+        # if there's another active dataset it is made inactive
         ds = self.market.active_set()
         if ds != None:
             ds.is_active = False
