@@ -7,27 +7,15 @@ def periodic(f, t = 1):
         f()
         sleep(t)
 
+### UNUSED!! ###
 class Command(BaseCommand):
-    help = 'Closes the specified poll for voting'
-
-    def add_arguments(self, parser):
-        parser.add_argument('poll_id', nargs='+', type=int)
+    help = 'Runs the market. '
         
-
 
     def handle(self, *args, **options):
-        periodic(Command.zurla)
+        periodic(Command.check_orders)
         
-    def zurla():
+    def check_orders():
         ords = Order.unprocessed_orders()
         if ords.count() > 0:
-            print("qj kur: " + str(len(ords)))
-
-from django.core.signals import request_finished
-
-def my_callback(sender, **kwargs):
-    print("Request finished!")
-
-request_finished.connect(my_callback)
-
-z = input("enter to exit")
+            print(str(len(ords)))
