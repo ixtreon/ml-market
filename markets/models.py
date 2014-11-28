@@ -11,7 +11,7 @@ import os
 import django.core.exceptions
 import random
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
-from markets.signals import order_placed
+from markets.signals import order_placed, datum_changed
 from _decimal import Context
 
 def to_decimal(f):
@@ -81,15 +81,6 @@ class Account(models.Model):
     def standing_orders(self):
         return self.order_set.all()
 
-    #@transaction.atomic
-    #def place_single_order(self, market, outcome, amount):
-    #    try:
-    #        order = Order.new_single(market, self, outcome, amount)
-    #    except Exception as err:
-    #        raise Exception("failed creating an order: " + str(err))
-        
-    #    print("wohoo, made an order!")
-    #    return order
 
     @transaction.atomic
     def place_multi_order(self, market, position):
@@ -98,7 +89,7 @@ class Account(models.Model):
         except Exception as err:
             raise Exception("failed creating an order: " + str(err))
         
-        order_placed.send(sender=self, order=order)
+        order_placed.send(sender=self.__class__, order=order)
         return order
 
 class Event(models.Model):
@@ -223,14 +214,26 @@ class DataSet(models.Model):
         self.active_datum_id = 0
         self.save()
 
-    def next_challenge(self):
-        "Increments active_datum_id by 1. If there is no datum with such id, an exception is thrown. "
-        new_datum = self.active_datum_id + 1
-        if not self.has_datum(new_datum):
+    def next_challenge_id(self):
+        new_id = self.active_datum_id + 1
+        if not self.has_datum(new_id):
             raise Exception("No next challenge!")
-        self.active_datum_id = new_datum
-        self.challenge_start = timezone.now()
+        return new_id
+
+    def next(self):
+        """Advances this active set to the next datum (challenge). 
+If there is no datum with such id, the set is made inactive. \
+In both cases raises the datum_changed signal. 
+Returns whether the set is active. """
+        assert self.is_active
+        try:
+            self.active_datum_id = self.next_challenge_id()
+            self.challenge_start = timezone.now()
+        except:
+            self.is_active = False
         self.save()
+        datum_changed.send(sender=self.__class__, set=self)
+        return self.is_active
 
     # creates a new datum for this dataset and saves it
     def random_datum(self, x = ""):
