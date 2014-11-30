@@ -12,7 +12,10 @@ import django.core.exceptions
 import random
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from markets.signals import order_placed, datum_changed
-from _decimal import Context
+from decimal import Context
+from datetime import timedelta
+from django import forms
+from markets.fields.TimedeltaField import TimedeltaField
 
 def to_decimal(f):
     return Decimal(f, Context(prec=2))
@@ -95,7 +98,7 @@ class Account(models.Model):
 class Event(models.Model):
     "A set of outcomes for a market. "
     description = models.CharField(max_length=255, default='Some outcome set')
-    market = models.ForeignKey(Market)
+    market = models.ForeignKey(Market, related_name="events")
 
     def fix_outcomes(self):
         "Makes sure all outcomes sum to 1"
@@ -131,7 +134,7 @@ class Event(models.Model):
 
 # represents a single outcome in a multiclass market. 
 class Outcome(models.Model):
-    event = models.ForeignKey(Event, default=1)
+    event = models.ForeignKey(Event, default=1, related_name='outcomes')
 
     name = models.CharField(max_length=255)
     current_price = DecimalField()
@@ -159,15 +162,14 @@ class DataSet(models.Model):
     # should not be set manually
     datum_count = models.IntegerField(default=0)
 
-    # interval between consecutive challenges in days
-    reveal_interval = models.IntegerField('Interval between challenges', default=7)
-
     # the id of the active datum
     active_datum_id = models.IntegerField(default=0)
 
     # time when the active datum was revealed
     challenge_start = models.DateTimeField('Date last challenge was started', default=datetime.datetime(2014,1,1))
-
+    
+    # interval between consecutive challenges in days
+    reveal_interval = models.IntegerField('Interval between challenges', default=7)
 
     def challenge_end(self):
         return self.challenge_start + datetime.timedelta(days=self.reveal_interval)
@@ -221,9 +223,8 @@ class DataSet(models.Model):
         return new_id
 
     def next(self):
-        """Advances this active set to the next datum (challenge). 
+        """Advances this active set to the next datum (challenge) and raises the datum_changed signal.
 If there is no datum with such id, the set is made inactive. \
-In both cases raises the datum_changed signal. 
 Returns whether the set is active. """
         assert self.is_active
         try:

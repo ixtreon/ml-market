@@ -66,7 +66,7 @@
                     sum += parseFloat(a.value) * prices[a.id];
             }
             btn_cost.value = sum
-            if(btn_cost.value == 0)
+            if(sum == 0)
                 place_order.setCustomValidity("Please bet something!")
             else if(sum > funds)
                 place_order.setCustomValidity("You won't have enough funds!")

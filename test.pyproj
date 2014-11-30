@@ -35,10 +35,19 @@
     <Compile Include="markets\cron.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="markets\fields\TimedeltaField.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="markets\forms.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="markets\management\commands\runmarket.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="markets\serializers.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="markets\viewsets.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="msr_maker\msrmaker.py">
@@ -83,6 +92,7 @@
     <Folder Include="markets\management\commands\" />
     <Folder Include="markets\migrations\" />
     <Folder Include="markets\management\" />
+    <Folder Include="markets\fields\" />
     <Folder Include="markets\templates\forms\" />
     <Folder Include="markets\uploads\" />
     <Folder Include="markets\static\" />

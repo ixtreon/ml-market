@@ -36,9 +36,21 @@ def user_info(request):
         'form': form,
         })
 
+# displays market bet form
+@login_required
+def market_bet(request, pk):
+    pass
+
+
+# displays orders the user has made
+@login_required
+def market_view_orders(request, pk):
+    pass
+
+
 # displays a market along with an order form for the user. 
 @login_required
-def market_view(request, pk):
+def market_index(request, pk):
     
     market_id = int(pk)
     m = get_object_or_404(Market, id=market_id)
@@ -48,13 +60,13 @@ def market_view(request, pk):
         a = None
 
     if request.method == 'POST' and a != None:
-        # A POST request: Handle Form Upload
+        # user wants to post a message
         form = MarketForm(m, a, post=request.POST) # Bind data from request.POST into a form
         # place the order
         ord = a.place_multi_order(m, form.position)
         # adds the newly created order to the form before displaying it. 
         form.orders.append(ord.get_data(form.outcomes))
-    else:
+    else:   # just display the market page
         form = MarketForm(m, a)
 
  
@@ -64,8 +76,8 @@ def market_view(request, pk):
 
 # Handles a user willing to join a specific market. 
 @login_required
-def market_join(request, qid):
-    m = get_object_or_404(Market, id=qid)
+def market_join(request, pk):
+    m = get_object_or_404(Market, id=pk)
     u = request.user
 
     if m.get_user_account(u) == None:
