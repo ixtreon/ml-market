@@ -3,6 +3,7 @@ from markets.models import DataSet
 from sched import scheduler
 from django.utils import timezone
 from threading import Thread
+import time
 
 ## Schedules updates to the markets' active challenges. 
 ## Runs on a thread different than the main one. 
@@ -10,7 +11,7 @@ from threading import Thread
 ## TODO: move file?
 class Cron():
 
-    cron = scheduler(timezone.now)
+    cron = scheduler(lambda: timezone.now().timestamp())
 
     
 
@@ -21,17 +22,12 @@ class Cron():
         print("Loaded %d active sets" % len(active_sets))
         # and start tracking them
         for s in active_sets:
-            Cron.advance_set(s)
+            self.advance_set(s)
 
         self.thread = Thread(target=self.cron.run, daemon=True)
         self.thread.start()
 
-    def track(self, set):
-        "Start tracking this dataset for expiration. "
-        print("Start tracking %s" % set)
-        self.cron.enterabs(set.challenge_end(), 1, Cron.advance_set, kwargs={'set': set})
-
-    def advance_set(set):
+    def advance_set(self, set):
         """Advances the dataset to its current datum and re-tracks it if it is still active afterwards. 
 Executed whenever a set expires. """
 
@@ -42,6 +38,7 @@ Executed whenever a set expires. """
             print("Advanced data-set %s" % set)
 
         if set.is_active:
-            assert set.challenge_end() > t
-            print("Tracking data-set %s" % set)
-            Cron.track(s)
+            end = set.challenge_end()
+            assert end > t
+            print("Tracking data-set %s" % str(set))
+            self.cron.enterabs(end.timestamp(), 1, Cron.advance_set, kwargs={'set': set})
