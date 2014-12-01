@@ -39,7 +39,7 @@ class MarketForm(forms.Form):
         #    # check if claim is non-null and a valid one. 
         #    if self.claim == None:
         #        self.errors['claim'] = "Please select a claim. "
-        #    elif self.market.outcome_set.filter(id=self.claim).count() != 1:
+        #    elif self.market.outcomes.filter(id=self.claim).count() != 1:
         #        self.errors['claim'] = 'Please select a valid claim. '
 
         #    # check if amount is non-null, valid and not greater than current funds
@@ -85,7 +85,7 @@ class MarketForm(forms.Form):
 
     def __init__(self, market, account, *args, **kwargs):
         self.market = market
-        self.events = [ (e.description, e.outcome_set.all()) for e in market.event_set.all()]
+        self.events = [ (e.description, e.outcomes.all()) for e in market.events.all()]
         self.outcomes = list(Outcome.objects.filter(event__market=self.market))
         self.account = account
 

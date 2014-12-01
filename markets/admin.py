@@ -19,7 +19,7 @@ class MarketAdminForm(forms.ModelForm):
     def clean(self):
         cleaned_data = self.cleaned_data
 
-        #n_outcomes = self.instance.outcome_set.count()
+        #n_outcomes = self.instance.outcomes.count()
         #if n_outcomes == 0:
         #    raise ValidationError("KUR")
 

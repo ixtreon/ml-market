@@ -38,10 +38,10 @@ class MSRMaker():
         return new_risk - current_risk
 
     def accept_positions(ev, ps):
-        "Subtracts the amounts from the given positions to the market maker's balance. "
+        "Subtracts the amounts from the given positions from the market maker's balance. "
         for p in ps:
             supply = Supply.objects.get(outcome=p.outcome)
-            supply.amount += p.amount
+            supply.amount -= p.amount
             supply.save()
 
     def sample_prices(ev, d = 1):

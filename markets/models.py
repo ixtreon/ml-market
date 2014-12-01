@@ -11,7 +11,7 @@ import os
 import django.core.exceptions
 import random
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
-from markets.signals import order_placed, datum_changed
+from markets.signals import order_placed, dataset_change
 from decimal import Context
 from datetime import timedelta
 from django import forms
@@ -103,13 +103,13 @@ class Event(models.Model):
     def fix_outcomes(self):
         "Makes sure all outcomes sum to 1"
         # get the outcomes from the market
-        outcomes = list(self.outcome_set.all())
+        outcomes = list(self.outcomes.all())
         
-        pdf_invalid = (self.outcome_set.filter(current_price=0).count() > 0)
+        pdf_invalid = (self.outcomes.filter(current_price=0).count() > 0)
 
         if pdf_invalid:
             n_outcomes = len(outcomes)
-            for o in self.outcome_set.all():
+            for o in self.outcomes.all():
                 o.current_price = 1 / n_outcomes
                 o.save()
         else:
@@ -124,7 +124,7 @@ class Event(models.Model):
 
     def random_outcome(self):
         "Draws a random outcome from this set. "
-        outcomes = list(self.outcome_set.all())
+        outcomes = list(self.outcomes.all())
         n_outcomes = len(outcomes)
         random_outcome_id = random.randint(0, n_outcomes-1)   # range is inclusive at both ends
         return outcomes[random_outcome_id]
@@ -198,13 +198,16 @@ class DataSet(models.Model):
             raise Exception("Too many active challenges! Invalid state?.. ")
         
     def get_outcomes(self):
-        return self.market.outcome_set.all()
+        return self.market.outcomes.all()
 
     @transaction.atomic
     def start(self):
         "Sets this DataSet as the active set for its market."
         # if there's another active dataset it is made inactive
         ds = self.market.active_set()
+        if ds == this:
+            return
+
         if ds != None:
             ds.is_active = False
             ds.save()
@@ -212,11 +215,27 @@ class DataSet(models.Model):
         self.challenge_start = timezone.now()
         self.save()
 
+    def pause(self):
+        self.is_active = False
+        self.save()
+
+    def set_challenge(self, i):
+        "Sets the next challenge. "
+        if not self.has_datum(i):
+            raise Exception("No challenge with id %d for set %s!" % (i, self))
+
+        self.active_datum_id = i
+        self.challenge_start = timezone.now()
+
+        self.save()
+
+
     def reset(self):
         "Resets active_datum_id to 0. If there is no datum with id of 0, an exception is thrown. "
         if not self.has_data():
             raise Exception("No active challenge!")
         self.active_datum_id = 0
+        self.challenge_start = timezone.now()
         self.save()
 
     def next_challenge_id(self):
@@ -226,7 +245,7 @@ class DataSet(models.Model):
         return new_id
 
     def next(self):
-        """Advances this active set to the next datum (challenge) and raises the datum_changed signal.
+        """Advances this active set to the next datum (challenge) and raises the set_expire_changed signal.
 If there is no datum with such id, the set is made inactive. \
 Returns whether the set is active. """
         assert self.is_active
@@ -236,7 +255,6 @@ Returns whether the set is active. """
         except:
             self.is_active = False
         self.save()
-        datum_changed.send(sender=self.__class__, set=self)
         return self.is_active
 
     # creates a new datum for this dataset and saves it
@@ -254,7 +272,7 @@ Generates a random result for each event in the DataSet market. """
         dat.save()
 
         # generate random outcomes for each event
-        es = self.market.event_set.all()
+        es = self.market.events.all()
         for e in es:
             o = e.random_outcome()
             r = Result(
@@ -284,6 +302,11 @@ Generates a random result for each event in the DataSet market. """
 
     def __str__(self):
         return "dataset #%d" % (self.id)
+
+    def save(self, *args, **kwargs):
+        print("event weeee!")
+        dataset_change.send(self.__class__, set=self)
+        return super().save(*args, **kwargs)
 
 class Datum(models.Model):
     # the set this data point is part of
