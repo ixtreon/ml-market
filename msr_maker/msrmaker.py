@@ -52,7 +52,7 @@ class MSRMaker():
         prices = {}
         for (out, amount) in supply.items():
             supply[out] -= d
-            buy = current_risk - log_C(b, supply.values())
+            buy = log_C(b, supply.values()) - current_risk
             supply[out] += 2 * d
             sell = log_C(b, supply.values()) - current_risk
             supply[out] -= d
@@ -91,8 +91,8 @@ class MSRMaker():
                     prices = MSRMaker.sample_prices(ev)
                     # and update our offers
                     for (out, (b, s)) in prices.items():
-                        out.sell_offer = s
-                        out.buy_offer = b
+                        out.sell_offer = b  # user can sell at our buy price
+                        out.buy_offer = s   # user can buy at our sell price
                         print("b: %f s: %f" % (b, s))
                         out.save()
                 # TODO: add shares to the user?
