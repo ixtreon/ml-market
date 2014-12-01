@@ -113,13 +113,14 @@ class DataSetAdminForm(forms.ModelForm):
     # makes sure the selected market has events
     # only checked for new datasets as existing ones can't have their market changed. 
     def clean_market(self):
+        market = self.cleaned_data.get('market', 0)
         if self.is_new:
-            market = self.cleaned_data.get('market', 0)
             # raise error if trying to add a dataset for an empty market
             # (a market with no events)
-            event_count = market.event_set.count()
+            event_count = market.events.count()
             if event_count == 0:
                 raise forms.ValidationError("The current market has no events!")
+        return market
 
     # check whether only one of random/file data sources is set
     def clean(self):
@@ -144,8 +145,8 @@ class DataSetAdminForm(forms.ModelForm):
     def save(self, commit=True):
         self.file = self.cleaned_data.get('upload_file', None)
         self.n_random = self.cleaned_data.get('n_random_entries', 0)
-        return super(DataSetAdminForm, self).save(commit=commit)
-    
+        return super().save(commit=commit)
+
 class DataSetAdmin(admin.ModelAdmin):
     form = DataSetAdminForm
 
@@ -156,7 +157,7 @@ class DataSetAdmin(admin.ModelAdmin):
             'is_training', ]}),
         ('Data Source', {'fields': ['n_random_entries', 'upload_file']}),
     ]
-    list_display = ('market', 'description', 'is_active', 'datum_count')
+    list_display = ('market', 'description', 'is_active', 'active_datum_id', 'next_challenge_in')
 
     actions = ['reset', 'start']
 
@@ -177,7 +178,7 @@ class DataSetAdmin(admin.ModelAdmin):
 
     # sets the user for the DataSetAdminForm
     def get_form(self, request, *args, **kwargs):
-         form = super(DataSetAdmin, self).get_form(request, **kwargs)
+         form = super().get_form(request, **kwargs)
          form.user = request.user
          return form
     
@@ -185,12 +186,12 @@ class DataSetAdmin(admin.ModelAdmin):
     # whenever a new model is saved/created
     def save_model(self, request, obj, form, change):
         obj.save()
+        # generate random data or (TODO) import from a file
         if form.is_new:
             if form.n_random:
                 obj.new_random(form.n_random)
             else:
                 assert(obj.file)
-                pass    # TODO: handle parsing of uploaded files somehow. 
 
 
     
