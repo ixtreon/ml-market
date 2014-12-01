@@ -163,13 +163,16 @@ class DataSet(models.Model):
     datum_count = models.IntegerField(default=0)
 
     # the id of the active datum
-    active_datum_id = models.IntegerField(default=0)
+    active_datum_id = models.IntegerField('Active challenge id', default=0)
 
     # time when the active datum was revealed
-    challenge_start = models.DateTimeField('Date last challenge was started', default=datetime.datetime(2014,1,1))
+    challenge_start = models.DateTimeField('Challenge started', default=datetime.datetime(2014,1,1))
     
     # interval between consecutive challenges in days
     reveal_interval = models.IntegerField('Interval between challenges', default=7)
+
+    def next_challenge_in(self):
+        return self.challenge_end() - timezone.now()
 
     def challenge_end(self):
         return self.challenge_start + datetime.timedelta(days=self.reveal_interval)

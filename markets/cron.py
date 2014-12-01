@@ -7,13 +7,10 @@ import time
 
 ## Schedules updates to the markets' active challenges. 
 ## Runs on a thread different than the main one. 
-## UNUSED !!
-## TODO: move file?
+## TODO: hook reveal_interval or challenge_start getting changed
 class Cron():
 
     cron = scheduler(lambda: timezone.now().timestamp())
-
-    
 
     def start(self):
         "Starts the cron scheduler on a new thread. "

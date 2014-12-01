@@ -21,9 +21,10 @@ urlpatterns = patterns('',
     url(r'^login/$', auth_views.login, name='login'),
     url(r'^logout/$', auth_views.logout, {'next_page':'markets:markets'}, name='logout'),
     url(r'^user/', markets.views.user_info, name='user'),
-    url(r'^market/', include('markets.urls', namespace='markets')),
     url(r'^upload/', markets.views.upload_file, name='upload'),
-    ## django-rest-framework
+    # market 
+    url(r'^market/', include('markets.urls', namespace='markets')),
+    # django-rest-framework
     url(r'^api/', include(router.urls)),
-    url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework'))
+    url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
 )
