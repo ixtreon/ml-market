@@ -26,15 +26,16 @@ class MSRMaker():
 
     def eval_cost(ev, ps):
         "Gets the cost of accepting the given deal represented as a list of positions. "
-        supply = Supply.for_event(ev)
+        # eval current risk
+        supply = Supply.for_event(ev)   
         current_risk = log_C(b, supply.values())
-
-        for p in ps:
+        # obtain the new supply
+        for p in ps:    
             assert (p.outcome in supply)
-            supply[p.outcome] += p.amount
-
-        new_risk = log_C(b, supply.values())
-
+            supply[p.outcome] -= p.amount
+        # and eval risk for it
+        new_risk = log_C(b, supply.values())    
+        # cost is the difference in risk
         return new_risk - current_risk
 
     def accept_positions(ev, ps):
@@ -45,16 +46,16 @@ class MSRMaker():
             supply.save()
 
     def sample_prices(ev, d = 1):
-        "Samples the prices for the events' outcomes. "
+        "Samples the prices for each of the events' outcomes. Returns a dict with tuples for the buy/sell prices. "
         supply = Supply.for_event(ev)
         current_risk = log_C(b, supply.values())
         prices = {}
         for (out, amount) in supply.items():
-            supply[out] += d
-            buy = log_C(b, supply.values()) - current_risk
-            supply[out] -= 2 * d
-            sell = current_risk - log_C(b, supply.values())
-            supply[out] += d
+            supply[out] -= d
+            buy = current_risk - log_C(b, supply.values())
+            supply[out] += 2 * d
+            sell = log_C(b, supply.values()) - current_risk
+            supply[out] -= d
             prices[out] = (buy, sell)
         return prices
 
