@@ -1,4 +1,6 @@
 ﻿
+{% if form.market_active %}
+    
     <form action="{% url 'markets:market' form.market.id %}" method="post">
     {% csrf_token %}
         
@@ -77,3 +79,6 @@
     </script>
 
     </form>
+{% else %}
+    This market is currently inactive. 
+{% endif %}

@@ -33,14 +33,8 @@ class MarketForm(forms.Form):
         self.errors = {}
 
         # TODO: restore server-side validation
-        # Note this doesn't break anything as even if someone submits an forged order
-        # it's going to be validated by the market maker anyway. 
-
-        #    # check if claim is non-null and a valid one. 
-        #    if self.claim == None:
-        #        self.errors['claim'] = "Please select a claim. "
-        #    elif self.market.outcomes.filter(id=self.claim).count() != 1:
-        #        self.errors['claim'] = 'Please select a valid claim. '
+        # Note this doesn't check for forged orders
+        # the market maker should perform validation anyway. 
 
         #    # check if amount is non-null, valid and not greater than current funds
         #    if self.amount == None:
@@ -52,16 +46,6 @@ class MarketForm(forms.Form):
 
         return len(self.errors) == 0 
 
-    def get_json_data(self):
-        "Gets the events and outcomes in json format to serve to the user. "
-        m = self.market
-        events = [e for e in Event.objects.filter(market=m).values_list('id', 'description')]
-        outcomes = [o for o in Outcome.objects.filter(event__market=m).values_list('event', 'name', 'current_price')]
-        d = { 
-            'events' : events,
-            'outcomes' : outcomes,
-            }
-        return json.dumps(d, cls=DjangoJSONEncoder)
 
 
     def json_prices(self):
@@ -84,6 +68,7 @@ class MarketForm(forms.Form):
         return pos
 
     def __init__(self, market, account, *args, **kwargs):
+        self.market_active = market.is_active()
         self.market = market
         self.events = [ (e.description, e.outcomes.all()) for e in market.events.all()]
         self.outcomes = list(Outcome.objects.filter(event__market=self.market))
