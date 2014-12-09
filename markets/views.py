@@ -54,10 +54,7 @@ def market_index(request, pk):
     
     market_id = int(pk)
     m = get_object_or_404(Market, id=market_id)
-    try:
-        a = request.user.account_set.get(market=m)
-    except Account.DoesNotExist:
-        a = None
+    a = m.primary_account(request.user)
 
     if request.method == 'POST' and a != None:
         # user wants to post a message
@@ -80,10 +77,8 @@ def market_join(request, pk):
     m = get_object_or_404(Market, id=pk)
     u = request.user
 
-    if m.get_user_account(u) == None:
-        a = Account(user=u, market=m, funds=100)
-        a.save()
-
+    if not m.primary_account(u):
+        m.create_primary_account(u)
     return HttpResponseRedirect(reverse('markets:market', args=(m.id,)))
 
 # Handles a user willing to discard a standing (!) order

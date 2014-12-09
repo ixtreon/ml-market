@@ -2,25 +2,19 @@ import datetime
 from django.db import models, transaction
 from django.utils import timezone
 from django.contrib.auth.models import User
-from django.dispatch import receiver
-from django.db.models.signals import post_save, pre_init
-from decimal import Decimal, getcontext
-import django
-import math
+
+from decimal import Decimal
 import os
-import django.core.exceptions
 import random
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from markets.signals import order_placed, dataset_change
-from decimal import Context
-from datetime import timedelta
-from django import forms
-from markets.fields.TimedeltaField import TimedeltaField
 
+## Decimal handling
+decimal_places = 2
 def to_decimal(f):
-    return Decimal(f, Context(prec=2))
+    return Decimal(f).quantize(Decimal(10) ** -decimal_places)
 def DecimalField():
-    return models.DecimalField(default=0, decimal_places=2, max_digits=7)
+    return models.DecimalField(default=0, decimal_places=decimal_places, max_digits=7)
 
 def t():
     return timezone.now()
@@ -45,14 +39,22 @@ class Market(models.Model):
     def n_datasets(self):
         return DataSet.objects.filter(market=self).count()
 
-    def get_user_account(self, u):
-        "Gets the user's account for this market, or None if they are not registered. "
+    def primary_account(self, u):
+        "Returns the user's primary account for this market, or None if they are not registered. "
         try:
-            return u.account_set.get(market=self)
+            return u.account_set.get(market=self, is_primary=True)
         except Account.DoesNotExist:
             return None
         except MultipleObjectsReturned:
             raise Exception("Too many accounts for this user! Invalid state?.. ")
+
+    def create_primary_account(self, u):
+        "Creates a primary account for the given user. Throws an exception if the account exists. "
+        assert not self.primary_account(u)
+        a = Account(user=u, market=self, is_primary=True, funds=100)
+        a.save()
+        return a
+
 
     def is_active(self):
         return self.active_set() != None
@@ -67,6 +69,7 @@ class Market(models.Model):
 # contains info about the state of a given market at a given time
 # that is the current price, as determined by the processed orders
 # and the previous state (including previous prices of course)
+# ! NYI !
 class MarketState(models.Model):
     market = models.ForeignKey(Market)
     # previous state
@@ -80,10 +83,11 @@ class Account(models.Model):
     user = models.ForeignKey(User)
     market = models.ForeignKey(Market)
     funds = DecimalField()
+
+    is_primary = models.BooleanField(default=False)
     
     def standing_orders(self):
         return self.order_set.all()
-
 
     @transaction.atomic
     def place_multi_order(self, market, position):

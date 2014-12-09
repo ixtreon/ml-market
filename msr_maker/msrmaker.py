@@ -27,7 +27,7 @@ class MSRMaker():
     def eval_cost(ev, ps):
         "Gets the cost of accepting the given deal represented as a list of positions. "
         # eval current risk
-        supply = Supply.for_event(ev)   
+        supply = Supply.for_event(ev)
         current_risk = log_C(b, supply.values())
         # obtain the new supply
         for p in ps:    
@@ -50,16 +50,22 @@ class MSRMaker():
         supply = Supply.for_event(ev)
         current_risk = log_C(b, supply.values())
         prices = {}
-        # s = sum([exp(amount/b) for (out, amount) in supply.items()])
+        #s = sum([exp(amount/b) for (out, amount) in supply.items()])
         for (out, amount) in supply.items():
-            # calculates the instantaneous price
-            # buy = sell = exp(amount/b) / s
+            ## calculate the instantaneous price
+            #buy = sell = exp(amount/b) / s
+
+            starting_supply = supply[out]
+            assert starting_supply == supply[out]
+
             supply[out] -= d
             buy = log_C(b, supply.values()) - current_risk
             supply[out] += 2 * d
             sell = log_C(b, supply.values()) - current_risk
             supply[out] -= d
             prices[out] = (buy, sell)
+
+            assert starting_supply == supply[out]
         return prices
 
     def on_order_placed(sender, **kwargs):
@@ -77,7 +83,6 @@ class MSRMaker():
 
             # get the cost for completing the order by using the log-msr
             cost = sum([MSRMaker.eval_cost(ev, ps) for (ev,ps) in event_positions])
-            cost = to_decimal(cost)
             print("total sum for the order: %f" % (cost))
             # see if the order can be completed
             ord.is_successful = (acc.funds >= cost)
