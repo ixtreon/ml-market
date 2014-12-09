@@ -24,7 +24,7 @@ urlpatterns = patterns('',
     url(r'^upload/', markets.views.upload_file, name='upload'),
     # market 
     url(r'^market/', include('markets.urls', namespace='markets')),
-    # django-rest-framework
+    ### django-rest-framework
     url(r'^api/', include(router.urls)),
     url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
 )

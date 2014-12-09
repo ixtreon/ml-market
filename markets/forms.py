@@ -68,21 +68,23 @@ class MarketForm(forms.Form):
         return pos
 
     def __init__(self, market, account, *args, **kwargs):
-        self.market_active = market.is_active()
         self.market = market
+        self.market_active = market.is_active()
         self.events = [ (e.description, e.outcomes.all()) for e in market.events.all()]
         self.outcomes = list(Outcome.objects.filter(event__market=self.market))
+
         self.account = account
 
         # get the outcome prices in json to pass to the template
         self.prices = self.json_prices()
 
-        # get all the standing orders of the user
-        self.orders = [ord.get_data(self.outcomes) for ord in account.standing_orders()]
+        if account:
+            # get all the standing orders of the user
+            self.orders = [ord.get_data(self.outcomes) for ord in account.standing_orders()]
 
-        if kwargs.get('post'):
-            post = kwargs['post']
-            self.position = self.read_post_position(post)
+            if kwargs.get('post'):
+                post = kwargs['post']
+                self.position = self.read_post_position(post)
 
         super(MarketForm, self).__init__()
 

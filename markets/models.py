@@ -137,6 +137,8 @@ class Outcome(models.Model):
     event = models.ForeignKey(Event, default=1, related_name='outcomes')
 
     name = models.CharField(max_length=255)
+
+    # TODO: remove
     current_price = DecimalField()
 
     sell_offer = DecimalField()
@@ -249,10 +251,10 @@ class DataSet(models.Model):
 If there is no datum with such id, the set is made inactive. \
 Returns whether the set is active. """
         assert self.is_active
-        try:
+        try:    # try advancing the dataset
             self.active_datum_id = self.next_challenge_id()
             self.challenge_start = timezone.now()
-        except:
+        except: # make it inactive if no next datum
             self.is_active = False
         self.save()
         return self.is_active
@@ -304,8 +306,8 @@ Generates a random result for each event in the DataSet market. """
         return "dataset #%d" % (self.id)
 
     def save(self, *args, **kwargs):
-        print("event weeee!")
         dataset_change.send(self.__class__, set=self)
+        #print("event weeee!")
         return super().save(*args, **kwargs)
 
 class Datum(models.Model):
