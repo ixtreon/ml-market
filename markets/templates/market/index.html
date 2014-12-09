@@ -5,17 +5,17 @@
 <h1>{{ form.market.description }}</h1>
 
 {# Check whether the user has an account for this market. #}
-{% if form.is_active %}
-{% if form.account == None %}
-    {% include "forms/join_market.html" %}
-{% else %}
-    <p>Your current bank is {{ form.account.funds }} credits. </p>
+{% if form.market_active %}
+    {% if form.account == None %}
+        {% include "forms/join_market.html" %}
+    {% else %}
+        <p>Your current bank is {{ form.account.funds }} credits. </p>
 
 
-    {# betting form #}
-    <div class="content_item">{% include "forms/bet_multi.html" %}</div>
-    <div class="content_item">{% include "forms/view_orders.html" %}</div>
-{% endif %}
+        {# betting form #}
+        <div class="content_item">{% include "forms/bet_multi.html" %}</div>
+        <div class="content_item">{% include "forms/view_orders.html" %}</div>
+    {% endif %}
 {% else %}
     This market is currently inactive. 
 {% endif %}
