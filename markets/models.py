@@ -207,7 +207,7 @@ class DataSet(models.Model):
         "Sets this DataSet as the active set for its market."
         # if there's another active dataset it is made inactive
         ds = self.market.active_set()
-        if ds == this:
+        if ds == self:
             return
 
         if ds != None:

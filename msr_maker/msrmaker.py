@@ -9,7 +9,7 @@ from decimal import Decimal
 
 
 # The liquidity parameter b. 
-b = 100
+b = 5
 
 def log_C(b, supply):
     return to_decimal(b * log(sum(exp(s / b) for s in supply)))
@@ -20,9 +20,9 @@ class MSRMaker():
         "Gets all positions in the given order and keys them by their event. "
         all_ps = list(ord.position_set.all())
 
-        get_ev = lambda p: p.outcome.event
-        all_ps.sort(key=get_ev)
-        return [(ev,list(ps)) for (ev,ps) in groupby(all_ps, key=get_ev)]
+        get_ev_id = lambda p: p.outcome.event.id
+        all_ps.sort(key=get_ev_id)
+        return [(ev,list(ps)) for (ev,ps) in groupby(all_ps, key=lambda p: p.outcome.event)]
 
     def eval_cost(ev, ps):
         "Gets the cost of accepting the given deal represented as a list of positions. "
@@ -42,7 +42,7 @@ class MSRMaker():
         "Subtracts the amounts from the given positions from the market maker's balance. "
         for p in ps:
             supply = Supply.objects.get(outcome=p.outcome)
-            supply.amount -= p.amount
+            supply.amount += p.amount
             supply.save()
 
     def sample_prices(ev, d = 1):
@@ -50,7 +50,10 @@ class MSRMaker():
         supply = Supply.for_event(ev)
         current_risk = log_C(b, supply.values())
         prices = {}
+        # s = sum([exp(amount/b) for (out, amount) in supply.items()])
         for (out, amount) in supply.items():
+            # calculates the instantaneous price
+            # buy = sell = exp(amount/b) / s
             supply[out] -= d
             buy = log_C(b, supply.values()) - current_risk
             supply[out] += 2 * d
