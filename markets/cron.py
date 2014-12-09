@@ -57,6 +57,6 @@ class Cron():
         else:
             # explicitly untrack the set??
             # might come here if cron/jobs are not sync'd
-            (job_id, t_end) = self.jobs.pop(set, None)
+            (job_id, t_end) = self.jobs.pop(set, (None, None))
             if job_id:
                 self.cron.cancel(job_id)
