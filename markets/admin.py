@@ -7,8 +7,7 @@ from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned, 
 
 
 # the market admin form; 
-# right now it makes sure pub_date is set to today
-# when a market is saved in the admin
+# right now it does nothing
 class MarketAdminForm(forms.ModelForm):   
     class Meta:
         model = Market
@@ -16,28 +15,12 @@ class MarketAdminForm(forms.ModelForm):
 
     user = None
     
-    def clean(self):
-        cleaned_data = self.cleaned_data
-
-        #n_outcomes = self.instance.outcomes.count()
-        #if n_outcomes == 0:
-        #    raise ValidationError("KUR")
-
-    # if published_date is None set it to today. 
-    # (the default when creating a new market)
-    def save(self, commit=True):
-        market = super(MarketAdminForm, self).save(commit=False)
-        if market.pub_date == None:
-            market.pub_date = timezone.now()
-        market.save(commit=commit)
-        return market
-
 # The market admin. 
 # Shows an inline form for outcomes 
 # and makes sure they exist and sum to one
 class MarketAdmin(admin.ModelAdmin):
     form = MarketAdminForm
-    list_display = ('description', 'n_events', 'n_datasets', 'is_active')
+    list_display = ('description', 'n_events', 'n_datasets', 'is_active', 'pub_date')
 
 
 # The form used to create Outcome Sets
@@ -64,7 +47,6 @@ class EventAdmin(admin.ModelAdmin):
         self.instance = obj
         obj.save()
     
-
     # run whenever some subform is being saved. 
     # in this case we handle the Outcome sub-form
     # and make sure the outcomes starting prices sum to 1. 
@@ -74,10 +56,8 @@ class EventAdmin(admin.ModelAdmin):
             return super(MarketAdmin, self).save_formset(request, form, formset, change)
         formset.save()
 
-        print("fixing outcomes..")
-        self.instance.fix_outcomes()
-        print("done!")
-        # Market.fix_outcomes(Market, instance=self.market)
+        # make sure the prices are valid
+        self.instance.normalise_outcomes()
 
 
 # The form used to create and edit DataSets. 
@@ -189,7 +169,7 @@ class DataSetAdmin(admin.ModelAdmin):
         # generate random data or (TODO) import from a file
         if form.is_new:
             if form.n_random:
-                obj.new_random(form.n_random)
+                obj.random(form.n_random)
             else:
                 assert(obj.file)
 
