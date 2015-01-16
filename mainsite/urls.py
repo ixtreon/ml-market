@@ -4,12 +4,15 @@ from django.contrib.auth import views as auth_views
 import markets.views
 from django.views.generic.base import TemplateView
 from rest_framework import routers
-from markets.viewsets import MarketViewSet
+from markets.viewsets import *
 
 
-# Routers provide a way of automatically determining the URL conf.
+# Routers are used with django-rest-framework to automatically map views to urls
 router = routers.DefaultRouter()
 router.register(r'markets', MarketViewSet)
+router.register(r'accounts', AccountViewSet)
+router.register(r'datasets', DataSetViewSet)
+router.register(r'data', DatumViewSet)
 
 # declares the site-wide URLs to be used
 urlpatterns = patterns('',
