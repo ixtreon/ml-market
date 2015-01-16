@@ -60,7 +60,7 @@ def market_index(request, pk):
         # user wants to post a message
         form = MarketForm(m, a, post=request.POST) # Bind data from request.POST into a form
         # place the order
-        ord = a.place_multi_order(m, form.position)
+        ord = a.place_order(m, form.position)
         # adds the newly created order to the form before displaying it. 
         form.orders.append(ord.get_data(form.outcomes))
     else:   # just display the market page

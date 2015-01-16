@@ -79,8 +79,8 @@ class MarketForm(forms.Form):
         self.prices = self.json_prices()
 
         if account:
-            # get all the standing orders of the user
-            self.orders = [ord.get_data(self.outcomes) for ord in account.standing_orders()]
+            # get all orders from this user
+            self.orders = [ord.get_data(self.outcomes) for ord in account.all_orders()]
 
             if kwargs.get('post'):
                 post = kwargs['post']

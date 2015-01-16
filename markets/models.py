@@ -34,9 +34,11 @@ class Market(models.Model):
             raise Exception("Too many active datasets! Invalid state?.. ")
 
     def n_events(self):
+        "Gets the total amount of events registered with this market. "
         return Event.objects.filter(market=self).count()
 
     def n_datasets(self):
+        "Gets the total number of datasets for this market. "
         return DataSet.objects.filter(market=self).count()
 
     def primary_account(self, u):
@@ -55,21 +57,29 @@ class Market(models.Model):
         a.save()
         return a
 
+    def api_accounts(self, u):
+        "Gets all API accounts created by the given user for this market. "
+        return u.account_set.filter(is_primary=False)
 
     def is_active(self):
+        "Gets whether this market has an active dataset. "
         return self.active_set() != None
+    # shows it as an icon in the admin panel
     is_active.boolean = True
 
     def __str__(self):
         return self.description
 
     def save(self, *args, **kwargs):
+        # Sets the pub_date field the first time the object is saved
+        if self.pub_date == None:
+            self.pub_date = timezone.now()
         super(Market, self).save()
     
 # contains info about the state of a given market at a given time
 # that is the current price, as determined by the processed orders
 # and the previous state (including previous prices of course)
-# ! NYI !
+# NYI
 class MarketState(models.Model):
     market = models.ForeignKey(Market)
     # previous state
@@ -77,25 +87,36 @@ class MarketState(models.Model):
     # list of processed orders
     # timestamp
 
-# represents some user's bank account for a given market. 
-# should contain current funds, as well as standing orders
 class Account(models.Model):
+    """
+    Represents a user's bank account for a given market. 
+    Normal users are allowed only a primary account 
+    while admin users can create multiple secondary accounts. 
+    """
+
     user = models.ForeignKey(User)
+    
     market = models.ForeignKey(Market)
+    
     funds = DecimalField()
 
     is_primary = models.BooleanField(default=False)
     
-    def standing_orders(self):
+    def all_orders(self):
         return self.order_set.all()
 
+
     @transaction.atomic
-    def place_multi_order(self, market, position):
+    def place_order(self, market, position):
+        """
+        Tries to place an order from this account on the given market with the given positions. 
+        Each position is a tuple of an outcome, and the amount to wager on that outcome. 
+        """
         try:
-            order = Order.new_multi(market, self, position)
+            order = Order.new(market, self, position)
         except Exception as err:
             raise Exception("failed creating an order: " + str(err))
-        
+        # send the order_placed signal. 
         order_placed.send(sender=self.__class__, order=order)
         return order
 
@@ -104,7 +125,7 @@ class Event(models.Model):
     description = models.CharField(max_length=255, default='Some outcome set')
     market = models.ForeignKey(Market, related_name="events")
 
-    def fix_outcomes(self):
+    def normalise_outcomes(self):
         "Makes sure all outcomes sum to 1"
         # get the outcomes from the market
         outcomes = list(self.outcomes.all())
@@ -177,25 +198,37 @@ class DataSet(models.Model):
     # interval between consecutive challenges in days
     reveal_interval = models.IntegerField('Interval between challenges', default=7)
 
+
+    def next_id(self):
+        """
+        Retrieves an id for the next datum and advances self.datum_count. 
+        """
+        id = self.datum_count
+        self.datum_count += 1
+        self.save()
+        return id
+
     def next_challenge_in(self):
+        "Gets the time remaining until this challenge ends. "
         return self.challenge_end() - timezone.now()
 
     def challenge_end(self):
+        "Gets the datatime the active challenge ends at. "
         return self.challenge_start + datetime.timedelta(days=self.reveal_interval)
 
     def has_data(self):
-        "Gets whether this dataset has any data in it. "
+        "Gets whether this dataset has any datums. "
         assert (self.datum_set.count() == 0) == (self.datum_count == 0)
         return self.datum_count == 0
 
     def has_datum(self, id):
-        "Gets whether this DataSet contains a datum with the given id"
+        "Gets whether this DataSet contains a datum with the given id. "
         has_it = self.datum_set.filter(id=id).count() > 0
         assert has_it == (id < self.active_datum_id)
         return has_it
 
     def active_datum(self):
-        "Gets the active datum using the active_datum id"
+        "Gets the active datum using active_datum_id. "
         try:
             return self.datum_set.get(set_id=self.active_datum_id)
         except ObjectDoesNotExist:
@@ -217,6 +250,7 @@ class DataSet(models.Model):
         if ds != None:
             ds.is_active = False
             ds.save()
+
         self.is_active = True
         self.challenge_start = timezone.now()
         self.save()
@@ -251,9 +285,12 @@ class DataSet(models.Model):
         return new_id
 
     def next(self):
-        """Advances this active set to the next datum (challenge) and raises the set_expire_changed signal.
-If there is no datum with such id, the set is made inactive. \
-Returns whether the set is active. """
+        """
+        Advances this active set to the next datum (challenge) and raises the set_expire_changed signal.
+        If there is no datum with such id, the set is made inactive. \
+        Returns whether the set is active. 
+        """
+
         assert self.is_active
         try:    # try advancing the dataset
             self.active_datum_id = self.next_challenge_id()
@@ -263,47 +300,21 @@ Returns whether the set is active. """
         self.save()
         return self.is_active
 
-    # creates a new datum for this dataset and saves it
-    def random_datum(self, x = ""):
-        """Creates a new random datum for this DataSet and saves it. 
-Generates a random result for each event in the DataSet market. """
 
-        if not x: # generate a placeholder name
-            x = self.description + " " + str(self.datum_count)
-
-        dat = Datum(
-            x = x,
-            set_id = self.datum_count,
-            data_set = self)
-        dat.save()
-
-        # generate random outcomes for each event
-        es = self.market.events.all()
-        for e in es:
-            o = e.random_outcome()
-            r = Result(
-                datum=dat,
-                outcome=o)
-            r.save()
-
-
-    # generates a new dataset with n_datums data points
-    # each specifying a random outcome for each event in this market. 
-    # Finally saves the dataset. 
-    def new_random(self, n_datums=0):
-
+    def random(self, n_datums):
+        """
+        Generates n_datums random datums for this dataset. 
+        """
         if n_datums <= 0:
             raise ValueError("n_datums must be positive!")
 
         for i in range(n_datums):
-            dat = self.random_datum()
-            # don't forget to increase the count of data points
-            self.datum_count += 1
+            dat = Datum.random(self)
         self.save()
 
     # creates a new dataset from a file
     # TODO: add schema as param?
-    def new_from_file(market, file):
+    def from_file(market, file):
         pass
 
     def __str__(self):
@@ -322,6 +333,46 @@ class Datum(models.Model):
 
     # the consecutive id of the datum in the set
     set_id = models.IntegerField()
+
+    def random(set, x = ""):
+        """
+        Creates a new datum with random results 
+        for this DataSet's outcomes and saves it
+        """
+
+        id = set.next_id()
+
+        if not x: # generate a placeholder name
+            x = "%s %s" % (set.description, id)
+
+        dat = Datum(
+            x = x,
+            set_id = id,
+            data_set = set)
+        dat.save()
+
+        # generate random outcomes for each event
+        es = set.market.events.all()
+        for e in es:
+            o = e.random_outcome()
+            r = Result(
+                datum=dat,
+                outcome=o)
+            r.save()
+
+    def new(set, results):
+        pass
+
+    def is_valid(self):
+        "Checks whether this datum contains results for all market events. "
+        market = self.data_set.market
+        mkt_events = set(market.events.all())
+        for result in self.result_set.select_related('outcome__event'):
+            ev = result.outcome.event
+            if ev not in mkt_events:
+                return False
+        return True
+
 
     def __str__(self):
         return "%s'%d" % (self.data_set,self.set_id)
@@ -344,14 +395,15 @@ class Order(models.Model):
     timestamp = models.DateTimeField('Time created')
     # whether the order is processed
     is_processed = models.BooleanField(default=False)
-
+    # whether the order was completed successfully
     is_successful = models.BooleanField(default=False)
 
     def unprocessed_orders():
+        "Gets all unprocessed orders. "
         return Order.objects.filter(is_processed=False)
 
-    # gets whether the order is cancelled
     def get_position(self, outcome):
+        "Gets this order's position for the specified outcome. "
         try:
             return self.position_set.get(outcome=outcome).amount
         except ObjectDoesNotExist:
@@ -359,33 +411,19 @@ class Order(models.Model):
         except MultipleObjectsReturned:
             raise Exception("Too many positions for order %d! Invalid state?.. " % (self.id))
         
-    # Gets the order along with a list of the order's position
-    # for all the selected outcomes. 
+    # Gets the order along with a list of the order's positions
+    # for all selected outcomes. 
     def get_data(self, outcomes):
         return (self, [self.get_position(out) for out in outcomes])
 
     # creates a new order for the given account playing on the given market. 
-    # looks up the current challenge for that market
-    # looks up its current price
     @transaction.atomic
     def new_single(market, account, outcome, amount):
-        # get this market's active challenge
-        dataset = market.active_set()
-        datum = dataset.active_datum()
-        # create the order
-        order = Order(
-            datum = datum,
-            account=account,
-            timestamp = timezone.now())
-        order.save()
-        # and its only position
-        pos = Position.new(order, outcome, amount)
-        pos.save()
-        return order
+        return Order.new(market, account, [(outcome,amount)]) 
 
     @transaction.atomic
-    def new_multi(market, account, position):
-        "Creates a new multi-position order for the given account. "
+    def new(market, account, positions):
+        "Creates a new multi-position order on the given market by the given account. "
 
         # get this market's active challenge
         dataset = market.active_set()
@@ -400,15 +438,18 @@ class Order(models.Model):
             account=account,
             timestamp = timezone.now())
         order.save()
-        # and its only position
-        for (out, amount) in position:
+
+        # and its position
+        for (out, amount) in positions:
             pos = Position.new(order, out, amount)
             pos.save()
         return order
 
 
     def cancel(self):
-        self.delete()
+        self.is_processed = True
+        self.is_successful = False
+        self.save()
     
 # represents a position on a given outcome
 # in the context of an order. 
