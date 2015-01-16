@@ -13,7 +13,7 @@
     <OutputPath>.</OutputPath>
     <ProjectTypeGuids>{5F0BE9CA-D677-4A4D-8806-6076C0FAAD37};{349c5851-65df-11da-9384-00065b846f21};{888888a0-9f3d-457c-b088-3a5042f75d52}</ProjectTypeGuids>
     <LaunchProvider>Django launcher</LaunchProvider>
-    <InterpreterId>{9a7a9026-48c1-4688-9d5d-e5699d47d074}</InterpreterId>
+    <InterpreterId>{2af0f10d-7135-4994-9156-5d01c9c11b7e}</InterpreterId>
     <InterpreterVersion>3.4</InterpreterVersion>
     <UseIISExpress>true</UseIISExpress>
     <Name>test</Name>
@@ -93,6 +93,7 @@
     <Folder Include="markets\migrations\" />
     <Folder Include="markets\management\" />
     <Folder Include="markets\fields\" />
+    <Folder Include="markets\tests\" />
     <Folder Include="markets\templates\forms\" />
     <Folder Include="markets\uploads\" />
     <Folder Include="markets\static\" />
@@ -106,7 +107,7 @@
     <Folder Include="msr_maker\" />
   </ItemGroup>
   <ItemGroup>
-    <InterpreterReference Include="{9a7a9026-48c1-4688-9d5d-e5699d47d074}\3.4" />
+    <InterpreterReference Include="{2af0f10d-7135-4994-9156-5d01c9c11b7e}\3.4" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.Django.targets" />
   <ProjectExtensions>
