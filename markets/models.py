@@ -8,6 +8,7 @@ import os
 import random
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from markets.signals import order_placed, dataset_change
+import time
 
 ## Decimal handling
 decimal_places = 2
@@ -22,7 +23,25 @@ def t():
 class Market(models.Model):
     description = models.CharField(max_length=255, default='Add a description here. ')
 
-    pub_date = models.DateTimeField('Date Started')
+    pub_date = models.DateTimeField('Date Published')
+
+    def challenge_end(self):
+        if self.is_active():
+            return self.active_set().challenge_end()
+        else:
+            return None
+    def challenge_end_ticks(self):
+        end = self.challenge_end()
+        if end:
+            return int(time.mktime(end.timetuple()) * 1000)
+        else:
+            return None
+
+    def challenge_start(self):
+        if self.is_active():
+            return self.active_set().challenge_start
+        else:
+            return None
 
     def active_set(self):
         "Gets the active dataset for this market, or None if the market is inactive. "
@@ -64,8 +83,7 @@ class Market(models.Model):
     def is_active(self):
         "Gets whether this market has an active dataset. "
         return self.active_set() != None
-    # shows it as an icon in the admin panel
-    is_active.boolean = True
+    is_active.boolean = True    # show it as an icon in the admin panel
 
     def __str__(self):
         return self.description
@@ -294,9 +312,10 @@ class DataSet(models.Model):
         assert self.is_active
         try:    # try advancing the dataset
             self.active_datum_id = self.next_challenge_id()
-            self.challenge_start = timezone.now()
         except: # make it inactive if no next datum
             self.is_active = False
+        else:
+            self.challenge_start = timezone.now()
         self.save()
         return self.is_active
 
