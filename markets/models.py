@@ -265,6 +265,9 @@ class DataSet(models.Model):
         if ds == self:
             return
 
+        if self.datum_count <= 0:
+            raise Exception("Unable to start a set with no datums. ")
+
         if ds != None:
             ds.is_active = False
             ds.save()

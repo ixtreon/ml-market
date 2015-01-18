@@ -69,7 +69,7 @@ class DataSetAdminForm(forms.ModelForm):
         fields = ('market', 
                 'description',
                 'reveal_interval',
-                'is_training',)
+                'is_training')
     # the amount of random entries to generate. 
     n_random_entries = forms.IntegerField(initial=0, required=False)
     # the uploaded file to use as an input. 
@@ -137,7 +137,8 @@ class DataSetAdmin(admin.ModelAdmin):
             'is_training', ]}),
         ('Data Source', {'fields': ['n_random_entries', 'upload_file']}),
     ]
-    list_display = ('market', 'description', 'is_active', 'active_datum_id', 'next_challenge_in')
+    list_display = ('market', 'description', 'is_active', 'active_datum_id', 'next_challenge_in',
+                'datum_count')
 
     actions = ['reset', 'start']
 
@@ -147,7 +148,6 @@ class DataSetAdmin(admin.ModelAdmin):
             modeladmin.message_user(request, "Please select a single data set!", level=messages.ERROR)
         ds = queryset.first()
         
-        ds.challenge_start = timezone.now()
         ds.start()
 
     # admin action to reset the dataset
