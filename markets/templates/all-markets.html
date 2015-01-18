@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-
+{% load staticfiles %}
 {% block content %}
 
 <h1>Active Markets</h1>
@@ -29,7 +29,7 @@
     </tr>
 {% endif %}
 </table>
-
+<script src="{% static "countdown.js" %}"></script> 
 <script>
     var tips = $("[name=countdown]")
     function update_t_left() {
@@ -38,21 +38,11 @@
         for (i = 0; i < tips.length; ++i) {
             var t = tips[i];
             var expire = new Date(parseInt(t.getAttribute("ticks"))).getTime();
-            if(expire < now) expire = now;
-            var t_left = (expire - now) / 1000;
+            
+            var str = getTimeSpanString(now, expire)
 
-            var seconds = Math.floor(t_left % 60);
-            t_left = t_left / 60;
-            var minutes = Math.floor(t_left % 60);
-            t_left = t_left / 60;
-            var hours = Math.floor(t_left % 24);
-            t_left = t_left / 24;
-            var days = Math.floor(t_left);
-            var str = "" + days + " days, " + hours + ":" + minutes + ":" + seconds + " left";
+            t.setAttribute("data-tool", str + " left")
 
-            t.setAttribute("data-tool", str)
-
-            var str2 = str + str
         }
     }
 
