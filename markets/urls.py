@@ -7,7 +7,7 @@ from markets.viewsets import MarketViewSet
 
 
 urlpatterns = patterns('',
-    url(r'^$', views.IndexView.as_view(), name='markets'),
+    url(r'^$', views.MarketIndexView.as_view(), name='markets'),
     url(r'^(?P<pk>\d+)/$', views.market_index, name='market'),
     url(r'^remove_order/(?P<pk>\d+)/$', views.order_remove, name='remove_order'),
     url(r'^(?P<pk>\d+)/join/$', views.market_join, name='market_join'),

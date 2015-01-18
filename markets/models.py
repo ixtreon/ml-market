@@ -63,6 +63,8 @@ class Market(models.Model):
 
     def primary_account(self, u):
         "Returns the user's primary account for this market, or None if they are not registered. "
+        if u.is_anonymous():
+            return None
         try:
             return u.account_set.get(market=self, is_primary=True)
         except Account.DoesNotExist:

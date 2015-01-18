@@ -20,7 +20,9 @@
         <td><a data-tool="???" ticks="{{m.challenge_end_ticks}}" class="tooltip bottom" name="countdown">
             {{ m.challenge_end }}
         </a></td>
-        <td>NYI</td>
+        <td>{% if m.primary_funds %}    {{ m.primary_funds }}
+            {% else %}                  N/A
+            {% endif %}</td>
     </tr>
     {% endfor %}
 {% else %}

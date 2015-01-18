@@ -20,7 +20,7 @@ def index(request):
         'markets': markets,
         })
 
-class IndexView(generic.ListView):
+class MarketIndexView(generic.ListView):
     template_name = 'all-markets.html'
     context_object_name = 'markets'
     
@@ -28,6 +28,16 @@ class IndexView(generic.ListView):
     def get_queryset(self):
         return [m for m in Market.objects.order_by('-pub_date') if m.is_active()]
 
+    def get_context_data(self, **kwargs):
+        # Call the base first to get a context
+        context = super().get_context_data(**kwargs)
+        # Then append to each market the current user's funds
+        u = self.request.user
+        for m in context['markets']:
+            usr_mkt_account = m.primary_account(u)
+            if usr_mkt_account:
+                m.primary_funds = usr_mkt_account.funds
+        return context
 
 
 # displays user information
@@ -89,7 +99,7 @@ def order_remove(request, pk):
     u = request.user
     ord = get_object_or_404(Order, account__user=u, id=pk)
     m = ord.account.market
-    ord.cancel()
+    ord.cancel()     # ord.cancel throws an exception for invalid orders
     return HttpResponseRedirect(reverse('markets:market', args=(m.id,)))
 
 # handles users uploading files
