@@ -78,12 +78,13 @@ class MSRMaker():
         assert (not ord.is_processed)
 
         with transaction.atomic():
-            print("processing order '%s'" % str(ord))
+            logger.info("Processing order '%s' from user '%s' placed at '%s'. " % 
+                        (str(ord), str(acc.user), ord.timestamp))
             event_positions = MSRMaker.get_ev_pos(ord)
 
             # get the cost for completing the order by using the log-msr
             cost = sum([MSRMaker.eval_cost(ev, ps) for (ev,ps) in event_positions])
-            print("total sum for the order: %f" % (cost))
+            logger.debug("Order '%s' total sum: %f" % (ord, cost))
             # see if the order can be completed
             ord.is_successful = (acc.funds >= cost)
             if ord.is_successful:
@@ -108,7 +109,7 @@ class MSRMaker():
             ord.is_processed = True
             acc.save()
             ord.save()
-            print("order done")
+            logger.debug("Order '%s' processed!" % (ord,))
 
     def connect(self):
         "Starts listening for orders by connecting to the 'order_placed' signal. "

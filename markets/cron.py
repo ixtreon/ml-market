@@ -7,17 +7,18 @@ import time
 from markets.signals import dataset_change
 from functools import partial
 
+from markets.log import logger
+
 ## Schedules updates to the markets' active challenges. 
 ## Runs on a thread different than the main one. 
 ## TODO: hook reveal_interval or challenge_start getting changed
 class Cron():
     
-    
     jobs = dict()       # contains (cron_id, end_time) for each job
     cron = scheduler(lambda: timezone.now().timestamp())
 
     # executed when any of the datasets change. 
-    def set_changed(self, **kwargs):
+    def dataset_changed(self, **kwargs):
         set = kwargs['set']
         print("Set changed: %s" % set)
         is_tracked = set in self.jobs
@@ -26,10 +27,11 @@ class Cron():
     def start(self):
         "Starts the cron scheduler on a new, separate thread. "
         # connect to the set changed event
-        dataset_change.connect(partial(Cron.set_changed, self))
+        dataset_change.connect(partial(Cron.dataset_changed, self))
         # get all the active sets
         active_sets = set(DataSet.objects.filter(is_active=True))
-        print("Loaded %d active sets" % len(active_sets))
+        logger.info("Found %d currently active sets. " % len(active_sets))
+
         # advance (if necessary) and start tracking them
         for s in active_sets:
             self.advance_set(s)
@@ -45,7 +47,6 @@ class Cron():
         while set.is_active and set.challenge_end() <= t_now:
             if not set.next():
                 break
-            print("Advanced data-set %s" % set)
 
         if set.is_active:   # if there's a current challenge
             # re-add the set to the scheduler
@@ -54,5 +55,5 @@ class Cron():
             assert t_end > t_now
             job_id = self.cron.enterabs(t_end.timestamp(), 1, Cron.advance_set, kwargs={'set': set})
             self.jobs[set] = (job_id, t_end)
-            print("Tracking data-set %s" % str(set))
+            logger.info("Tracking challenge #%d of data-set %s" % (set.active_datum_id, str(set)))
 

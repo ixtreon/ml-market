@@ -9,6 +9,7 @@ import random
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from markets.signals import order_placed, dataset_change
 import time
+from markets.log import logger
 
 ## Decimal handling
 decimal_places = 2
@@ -276,7 +277,7 @@ class DataSet(models.Model):
         self.challenge_start = timezone.now()
         self.save()
 
-    def pause(self):
+    def stop(self):
         self.is_active = False
         self.save()
 
@@ -308,17 +309,20 @@ class DataSet(models.Model):
     def next(self):
         """
         Advances this active set to the next datum (challenge) and raises the set_expire_changed signal.
-        If there is no datum with such id, the set is made inactive. \
+        If there is no datum with such id, the set is made inactive. 
         Returns whether the set is active. 
         """
 
         assert self.is_active
+        old_datum = self.active_datum_id
         try:    # try advancing the dataset
             self.active_datum_id = self.next_challenge_id()
         except: # make it inactive if no next datum
             self.is_active = False
+            logger.info("Ended challenge #%d for dataset %s (no next challenge). " % (self.active_datum_id, str(self)))
         else:
             self.challenge_start = timezone.now()
+            logger.info("Started next challenge #%d for dataset %s. " % (self.active_datum_id, str(self)))
         self.save()
         return self.is_active
 

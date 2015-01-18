@@ -43,7 +43,7 @@ class EventAdmin(admin.ModelAdmin):
     # save the instance to this admin
     # used later to normalize the prices. 
     def save_model(self, request, obj, form, change):
-        print("saving the outcomes...")
+        #print("Saving the outcomes. ")
         self.instance = obj
         obj.save()
     
@@ -51,7 +51,7 @@ class EventAdmin(admin.ModelAdmin):
     # in this case we handle the Outcome sub-form
     # and make sure the outcomes starting prices sum to 1. 
     def save_formset(self, request, form, formset, change):
-        print("saving the market forms..")
+        #print("Saving the market forms. ")
         if formset.model != Outcome:
             return super(MarketAdmin, self).save_formset(request, form, formset, change)
         formset.save()

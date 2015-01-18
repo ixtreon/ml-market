@@ -9,6 +9,8 @@ from django.views import generic
 from django import forms
 from markets.forms import MarketForm, UploadForm, UserForm
 
+from markets.log import logger
+
 @login_required
 def index(request):
 
@@ -100,7 +102,7 @@ def upload_file(request, **kwargs):
     # Handle file upload
     if request.method == 'POST':
         form = UploadForm(u, request.POST, request.FILES)
-        print("upload request received.. ")
+
         try:
             file_data = request.FILES['file']
         except:
@@ -109,7 +111,7 @@ def upload_file(request, **kwargs):
             file = file_data,
             user = u)
         newdoc.save()
-        print("upload request accepted: '%s'" % file_data)
+        logger.info("User %s uploaded file '%s'" % (str(u), file_data))
         # Redirect to the document list after POST
         return HttpResponseRedirect(reverse('upload'))
     else:
