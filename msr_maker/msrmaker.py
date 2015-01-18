@@ -2,10 +2,11 @@
 from markets.signals import order_placed
 from django.db import transaction
 from markets.models import Outcome, Order, to_decimal
-from msr_maker.models import Supply
+from msr_maker.models import MsrSupply
 from itertools import groupby
 from math import *
 from decimal import Decimal
+from markets.log import logger
 
 
 # The liquidity parameter b. 
@@ -27,7 +28,7 @@ class MSRMaker():
     def eval_cost(ev, ps):
         "Gets the cost of accepting the given deal represented as a list of positions. "
         # eval current risk
-        supply = Supply.for_event(ev)
+        supply = MsrSupply.for_event(ev)
         current_risk = log_C(b, supply.values())
         # obtain the new supply
         for p in ps:    
@@ -41,13 +42,13 @@ class MSRMaker():
     def accept_positions(ev, ps):
         "Subtracts the amounts from the given positions from the market maker's balance. "
         for p in ps:
-            supply = Supply.objects.get(outcome=p.outcome)
+            supply = MsrSupply.objects.get(outcome=p.outcome)
             supply.amount += p.amount
             supply.save()
 
     def sample_prices(ev, d = 1):
         "Samples the prices for each of the events' outcomes. Returns a dict with tuples for the buy/sell prices. "
-        supply = Supply.for_event(ev)
+        supply = MsrSupply.for_event(ev)
         current_risk = log_C(b, supply.values())
         prices = {}
         #s = sum([exp(amount/b) for (out, amount) in supply.items()])
