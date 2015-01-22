@@ -114,8 +114,8 @@ class MSRMaker():
 
     def connect(self):
         "Starts listening for orders by connecting to the 'order_placed' signal. "
-        order_placed.connect(MSRMaker.on_order_placed)
+        order_placed.connect(self.on_order_placed)
 
     def disconnect(self):
         "Disconnects from the 'order_placed' signal and stops listening for new orders. "
-        order_placed.disconnect(MSRMaker.on_order_placed)
+        order_placed.disconnect(self.on_order_placed)

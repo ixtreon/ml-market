@@ -10,6 +10,7 @@ from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from markets.signals import order_placed, dataset_change
 import time
 from markets.log import logger
+from enum import Enum
 
 ## Decimal handling
 decimal_places = 2
@@ -21,16 +22,24 @@ def DecimalField():
 def t():
     return timezone.now()
 
+class MarketType(Enum):
+    order_book = 1
+    parimutuel = 2
+    msr_maker = 3
+
 class Market(models.Model):
     description = models.CharField(max_length=255, default='Add a description here. ')
 
     pub_date = models.DateTimeField('Date Published')
+
+    market_type = models.IntegerField(default=MarketType.msr_maker.value)
 
     def challenge_end(self):
         if self.is_active():
             return self.active_set().challenge_end()
         else:
             return None
+
     def challenge_end_ticks(self):
         end = self.challenge_end()
         if end:
@@ -487,10 +496,12 @@ class Position(models.Model):
     order = models.ForeignKey(Order)
     # what the claim was
     outcome = models.ForeignKey(Outcome)
-    # how much contracts to purchase or sell
+    # how much contracts to trade
     amount = DecimalField()
 
-    # the price the order was processed at. 
+    # The price per contract for this position. 
+    # Either set by the market maker when he processes the order
+    # Or set by the account holder when using an Order Book
     contract_price = DecimalField()
 
     def new(order, outcome, amount):
@@ -500,8 +511,8 @@ class Position(models.Model):
             amount=amount)
     
     # gets the total cost for this position. 
-    def get_cost(self, contract_price):
-        return self.amount * contract_price
+    def get_cost(self):
+        return self.amount * self.price
 
     def __str__(self):
         return "%d tokens for %s" % (self.amount, self.outcome)

@@ -9,9 +9,7 @@ class MarketConfig(AppConfig):
 
     market_maker = None
 
-
     def ready(self):
-
         # attach a market maker to this instance. 
         self.market_maker = MSRMaker()
         self.market_maker.connect()
