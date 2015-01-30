@@ -108,7 +108,7 @@ LOGGING = {
             'datefmt' : "%d/%b/%Y %H:%M:%S"
         },
         'simple': {
-            'format': '%(levelname)s %(message)s'
+            'format': '[%(levelname)s] %(message)s'
         },
     },
     'handlers': {
@@ -118,6 +118,11 @@ LOGGING = {
             'filename': 'debug.log',
             'formatter': 'verbose'
         },
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple'
+        },
     },
     'loggers': {
         'markets': {
@@ -126,3 +131,8 @@ LOGGING = {
         },
     }
 }
+# http://stackoverflow.com/questions/4558879/python-django-log-to-console-under-runserver
+# make all loggers use the console if run internally. 
+if DEBUG:
+    for logger in LOGGING['loggers']:
+        LOGGING['loggers'][logger]['handlers'] = ['console']
