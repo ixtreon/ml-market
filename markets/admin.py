@@ -11,7 +11,7 @@ from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned, 
 class MarketAdminForm(forms.ModelForm):   
     class Meta:
         model = Market
-        fields = ('description',) 
+        fields = ('description', 'type',) 
 
     user = None
     
