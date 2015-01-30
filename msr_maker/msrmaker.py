@@ -7,49 +7,39 @@ from itertools import groupby
 from math import *
 from decimal import Decimal
 from markets.log import logger
+from markets.marketmaker import MarketMaker
 
 
-# The liquidity parameter b. 
-b = 5
 
-def log_C(b, supply):
-    return to_decimal(b * log(sum(exp(s / b) for s in supply)))
-
-class MSRMaker():
+class MSRMaker(MarketMaker):
         
-    def get_ev_pos(ord):
-        "Gets all positions in the given order and keys them by their event. "
-        all_ps = list(ord.position_set.all())
+    
+    # The liquidity parameter b. 
+    b = 5
 
-        get_ev_id = lambda p: p.outcome.event.id
-        all_ps.sort(key=get_ev_id)
-        return [(ev,list(ps)) for (ev,ps) in groupby(all_ps, key=lambda p: p.outcome.event)]
+    def __init__(self, b=5):
+        """Creates a new Log market scoring rule maker with the specified liquidity parameter b. """
+        self.b = b
 
-    def eval_cost(ev, ps):
-        "Gets the cost of accepting the given deal represented as a list of positions. "
-        # eval current risk
-        supply = MsrSupply.for_event(ev)
-        current_risk = log_C(b, supply.values())
-        # obtain the new supply
-        for p in ps:    
-            assert (p.outcome in supply)
-            supply[p.outcome] -= p.amount
-        # and eval risk for it
-        new_risk = log_C(b, supply.values())    
-        # cost is the difference in risk
-        return new_risk - current_risk
+    def log_cost(self, supply):
+        """Evaluates the risk (also cost) of holding the given supply. """
+        return to_decimal(self.b * log(sum(exp(s / self.b) for s in supply)))
 
-    def accept_positions(ev, ps):
-        "Subtracts the amounts from the given positions from the market maker's balance. "
+    def accept_positions(self, ev, ps):
+        """Subtracts the amounts from the given positions from the market maker's balance. """
         for p in ps:
             supply = MsrSupply.objects.get(outcome=p.outcome)
             supply.amount += p.amount
             supply.save()
 
-    def sample_prices(ev, d = 1):
-        "Samples the prices for each of the events' outcomes. Returns a dict with tuples for the buy/sell prices. "
+    def sample_prices(self, ev, d = 1):
+        """
+        Samples the prices for each of the events' outcomes. 
+        Returns a dict with tuples for the buy/sell prices. 
+        """
+
         supply = MsrSupply.for_event(ev)
-        current_risk = log_C(b, supply.values())
+        current_risk = self.log_cost(supply.values())
         prices = {}
         #s = sum([exp(amount/b) for (out, amount) in supply.items()])
         for (out, amount) in supply.items():
@@ -60,32 +50,31 @@ class MSRMaker():
             assert starting_supply == supply[out]
 
             supply[out] -= d
-            buy = log_C(b, supply.values()) - current_risk
+            buy = self.log_cost(supply.values()) - current_risk
             supply[out] += 2 * d
-            sell = log_C(b, supply.values()) - current_risk
+            sell = self.log_cost(supply.values()) - current_risk
             supply[out] -= d
             prices[out] = (buy, sell)
 
             assert starting_supply == supply[out]
         return prices
 
-    def on_order_placed(sender, **kwargs):
+
+    def order_placed(self, ord):
         "Handles creation of orders by processing them instantly. "
         # TODO: implement a queue?
         # also: does transaction.atomic() serve as a lock? 
 
-        ord = kwargs['order']
         acc = ord.account
-        assert (not ord.is_processed)
+        assert (not ord.is_processed())
 
         with transaction.atomic():
-            logger.info("Processing order '%s' from user '%s' placed at '%s'. " % 
-                        (str(ord), str(acc.user), ord.timestamp))
-            event_positions = MSRMaker.get_ev_pos(ord)
+            event_positions = self.order_positions(ord)
 
             # get the cost for completing the order by using the log-msr
-            cost = sum([MSRMaker.eval_cost(ev, ps) for (ev,ps) in event_positions])
+            cost = sum([self.eval_cost(ev, ps) for (ev,ps) in event_positions])
             logger.debug("Order '%s' total sum: %f" % (ord, cost))
+
             # see if the order can be completed
             ord.is_successful = (acc.funds >= cost)
             if ord.is_successful:
@@ -94,11 +83,11 @@ class MSRMaker():
 
                 # update the market maker amounts
                 for (ev, ps) in event_positions:
-                    MSRMaker.accept_positions(ev, ps)
+                    self.accept_positions(ev, ps)
                     
                 # sample buy/sell prices
                 for (ev, ps) in event_positions:
-                    prices = MSRMaker.sample_prices(ev)
+                    prices = self.sample_prices(ev)
                     # and update our offers
                     for (out, (b, s)) in prices.items():
                         out.sell_offer = b  # user can sell at our buy price
@@ -107,15 +96,41 @@ class MSRMaker():
                         out.save()
                 # TODO: add shares to the user?
 
-            ord.is_processed = True
+            ord.set_processed()
             acc.save()
             ord.save()
             logger.debug("Order '%s' processed!" % (ord,))
+            
+    def can_quote(self):
+        return True
 
-    def connect(self):
-        "Starts listening for orders by connecting to the 'order_placed' signal. "
-        order_placed.connect(self.on_order_placed)
+    def price_quote(self, ord):
+        ps = self.order_positions(ord)
+        cost = sum([self.eval_cost(ev, ps) for (ev,ps) in event_positions])
+        logger.debug("Order '%s' quote: %f" % (ord, cost))
+        return cost
 
-    def disconnect(self):
-        "Disconnects from the 'order_placed' signal and stops listening for new orders. "
-        order_placed.disconnect(self.on_order_placed)
+    def order_positions(self, ord):
+        """
+        Gets all positions in the given order. 
+        Returns a dictionary of the events with the list of positions for each. 
+        """
+        all_ps = list(ord.position_set.all())
+
+        get_ev_id = lambda p: p.outcome.event.id
+        all_ps.sort(key=get_ev_id)
+        return [(ev,list(ps)) for (ev,ps) in groupby(all_ps, key=lambda p: p.outcome.event)]
+
+    def eval_cost(self, ev, ps):
+        "Gets the cost of accepting the given order represented as a list of positions. "
+        # eval current risk
+        supply = MsrSupply.for_event(ev)
+        current_risk = self.log_cost(supply.values())
+        # obtain the new supply
+        for p in ps:    
+            assert (p.outcome in supply)
+            supply[p.outcome] -= p.amount
+        # and eval risk for it
+        new_risk = self.log_cost(supply.values())    
+        # cost is the difference in risk
+        return new_risk - current_risk

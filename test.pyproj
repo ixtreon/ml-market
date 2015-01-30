@@ -47,6 +47,9 @@
     <Compile Include="markets\management\commands\runmarket.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="markets\marketmaker.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="markets\serializers.py">
       <SubType>Code</SubType>
     </Compile>
@@ -72,6 +75,8 @@
     <Compile Include="mainsite\__init__.py" />
     <Compile Include="msr_maker\models.py" />
     <Compile Include="msr_maker\__init__.py" />
+    <Compile Include="order_book\order_book.py" />
+    <Compile Include="order_book\__init__.py" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="markets\static\countdown.js" />
@@ -109,6 +114,7 @@
     <Folder Include="mainsite\templates\" />
     <Folder Include="mainsite\templates\admin\" />
     <Folder Include="msr_maker\" />
+    <Folder Include="order_book\" />
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="{2af0f10d-7135-4994-9156-5d01c9c11b7e}\3.4" />
