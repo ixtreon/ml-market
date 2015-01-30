@@ -11,6 +11,7 @@ from markets.signals import order_placed, dataset_change
 import time
 from markets.log import logger
 from enum import Enum
+from enumfields.fields import EnumIntegerField
 
 ## Decimal handling
 decimal_places = 2
@@ -32,7 +33,7 @@ class Market(models.Model):
 
     pub_date = models.DateTimeField('Date Published')
 
-    market_type = models.IntegerField(default=MarketType.msr_maker.value)
+    type = EnumIntegerField(MarketType, default=MarketType.msr_maker)
 
     def challenge_end(self):
         if self.is_active():
@@ -243,7 +244,7 @@ class DataSet(models.Model):
         return self.challenge_end() - timezone.now()
 
     def challenge_end(self):
-        "Gets the datatime the active challenge ends at. "
+        "Gets the datetime the active challenge ends at. "
         return self.challenge_start + datetime.timedelta(days=self.reveal_interval)
 
     def has_data(self):
@@ -430,14 +431,24 @@ class Order(models.Model):
     datum = models.ForeignKey(Datum)
     # when was the order made
     timestamp = models.DateTimeField('Time created')
-    # whether the order is processed
-    is_processed = models.BooleanField(default=False)
+
     # whether the order was completed successfully
     is_successful = models.BooleanField(default=False)
 
+    def set_processed(self):
+        """Marks all positions in this order as processed. """
+
+        for o in self.position_set.all():
+            o.is_processed = True
+            o.save()
+
+    def is_processed(self):
+        """"Wut. """
+        return not self.position_set.filter(is_processed=False).exists()
+
     def unprocessed_orders():
         "Gets all unprocessed orders. "
-        return Order.objects.filter(is_processed=False)
+        return Order.objects.filter(position__is_processed=False)
 
     def get_position(self, outcome):
         "Gets this order's position for the specified outcome. "
@@ -482,9 +493,12 @@ class Order(models.Model):
             pos.save()
         return order
 
+    def market(self):
+        assert (self.account.market == self.datum.data_set.market)
+        return self.account.market
 
     def cancel(self):
-        self.is_processed = True
+        self.set_processed()
         self.is_successful = False
         self.save()
     
@@ -499,8 +513,11 @@ class Position(models.Model):
     # how much contracts to trade
     amount = DecimalField()
 
+    # whether the position is processed
+    is_processed = models.BooleanField(default=False)
+
     # The price per contract for this position. 
-    # Either set by the market maker when he processes the order
+    # Either set by the market maker when it processes the order
     # Or set by the account holder when using an Order Book
     contract_price = DecimalField()
 
