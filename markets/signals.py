@@ -5,3 +5,6 @@ order_placed = django.dispatch.Signal(providing_args=["order"])
 
 # raised whenever a dataset is changed
 dataset_change = django.dispatch.Signal(["set"])
+
+# raised whenever a challenge expires
+dataset_expired = django.dispatch.Signal(["datum"])
