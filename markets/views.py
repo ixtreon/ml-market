@@ -10,6 +10,8 @@ from django import forms
 from markets.forms import MarketForm, UploadForm, UserForm
 
 from markets.log import logger
+from django.http.response import HttpResponse
+import json
 
 @login_required
 def index(request):
@@ -26,7 +28,11 @@ class MarketIndexView(generic.ListView):
     
     # returns all markets (no paging whatsoever)
     def get_queryset(self):
-        return [m for m in Market.objects.order_by('-pub_date') if m.is_active()]
+        markets = [m for m in Market.objects.order_by('-pub_date') if m.is_active()]
+        # TODODOODODODODO
+        for m in markets:
+            m.primary_funds = "123"
+        return markets
 
     def get_context_data(self, **kwargs):
         # Call the base first to get a context
@@ -48,16 +54,14 @@ def user_info(request):
         'form': form,
         })
 
-# displays market bet form
-@login_required
-def market_bet(request, pk):
-    pass
+
+def market_activity(request, pk):
+    response_data = {}
+    m = get_object_or_404(Market, id=int(pk))
 
 
-# displays orders the user has made
-@login_required
-def market_view_orders(request, pk):
-    pass
+    response_data['bur'] = 'kek'
+    return HttpResponse(json.dumps(response_data), content_type="application/json")
 
 
 # displays a market along with an order form for the user. 
