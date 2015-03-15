@@ -7,18 +7,21 @@ from decimal import Decimal
 import os
 import random
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
-from markets.signals import order_placed, dataset_change
+from markets.signals import order_placed, dataset_change, dataset_expired
 import time
 from markets.log import logger
 from enum import Enum
 from enumfields.fields import EnumIntegerField
+from _datetime import timedelta
+import itertools
 
 ## Decimal handling
 decimal_places = 2
 def to_decimal(f):
     return Decimal(f).quantize(Decimal(10) ** -decimal_places)
-def DecimalField():
+def CurrencyField():
     return models.DecimalField(default=0, decimal_places=decimal_places, max_digits=7)
+
 
 def t():
     return timezone.now()
@@ -27,6 +30,15 @@ class MarketType(Enum):
     order_book = 1
     parimutuel = 2
     msr_maker = 3
+
+class Interval():
+    Years = lambda dt: dt.year
+    Months = lambda dt: Interval.Years(dt) * 12 + dt.month
+    Days = lambda dt: Interval.Months(dt) * 31 + dt.day
+    Hours = lambda dt: Interval.Days(dt) * 24 + dt.hour
+    Minutes = lambda dt: Interval.Hours(dt) * 60 + dt.month
+    Seconds = lambda dt: Interval.Minutes(dt) * 60 + dt.month
+
 
 class Market(models.Model):
     description = models.CharField(max_length=255, default='Add a description here. ')
@@ -129,7 +141,7 @@ class Account(models.Model):
     
     market = models.ForeignKey(Market)
     
-    funds = DecimalField()
+    funds = CurrencyField()
 
     is_primary = models.BooleanField(default=False)
     
@@ -185,6 +197,36 @@ class Event(models.Model):
         random_outcome_id = random.randint(0, n_outcomes-1)   # range is inclusive at both ends
         return outcomes[random_outcome_id]
 
+    def price_histogram(self, dt_from, dt_to):
+        "Gets the price histogram for the event in the given time interval. """
+        d = dt_from - dt_to
+        pass
+
+    def activity_histogram(self, dt_from, dt_to, interval):
+        """Gets the amount of trades that occured in the given time interval."""
+        d = dt_from - dt_to
+        # get the list of positions in the given interval
+        trades = Position.objects.filter(outcome__event=self)
+        trades = trades.filter(order__timestamp__gte=dt_from)
+        trades = trades.filter(order__timestamp__lte = dt_to)
+        trades = list(trades)
+        trades.sort(key=lambda p: p.order.timestamp)
+
+        print("KUR: %s" % len(trades))
+
+        first_bin = interval(dt_from)
+        last_bin = interval(dt_to)
+        n_bins = last_bin - first_bin + 1
+        bins = []
+        i = 0
+        for bin_id in range(first_bin, last_bin + 1):
+            counts = 0
+            while i < len(trades) and interval(trades[i].order.timestamp) == bin_id:
+                counts += 1
+                i += 1
+            bins.append(counts)
+        return bins
+
     def __str__(self):
         return "%s (%s)" % (self.description, self.market)
 
@@ -195,10 +237,10 @@ class Outcome(models.Model):
     name = models.CharField(max_length=255)
 
     # TODO: remove
-    current_price = DecimalField()
+    current_price = CurrencyField()
 
-    sell_offer = DecimalField()
-    buy_offer = DecimalField()
+    sell_offer = CurrencyField()
+    buy_offer = CurrencyField()
 
     def __str__(self):
         return self.name + " : " + str(self.current_price)
@@ -227,8 +269,12 @@ class DataSet(models.Model):
     challenge_start = models.DateTimeField('Challenge started', default=datetime.datetime(2014,1,1))
     
     # interval between consecutive challenges in days
-    reveal_interval = models.IntegerField('Interval between challenges', default=7)
+    reveal_interval = models.FloatField('Interval between challenges', default=7)
 
+
+    def get_datum(self, set_id):
+        "Gets the datum with the specified set_id. Throws an exception if it does not exist. "
+        return self.datum_set.get(set_id=set_id)
 
     def next_id(self):
         """
@@ -243,31 +289,41 @@ class DataSet(models.Model):
         "Gets the time remaining until this challenge ends. "
         return self.challenge_end() - timezone.now()
 
+    def challenge_duration(self):
+        "Gets a timedelate representation of the duration of a challenge. "
+        return datetime.timedelta(days=self.reveal_interval)
+
     def challenge_end(self):
         "Gets the datetime the active challenge ends at. "
-        return self.challenge_start + datetime.timedelta(days=self.reveal_interval)
+        return self.challenge_start + self.challenge_duration()
+
+    def challenge_expired(self):
+        """Gets whether this set's current challenge has expired. """
+        return self.challenge_end() < timezone.now()
 
     def has_data(self):
         "Gets whether this dataset has any datums. "
-        assert (self.datum_set.count() == 0) == (self.datum_count == 0)
-        return self.datum_count == 0
+        assert self.datum_set.count() == self.datum_count
+        assert self.datum_count >= 0
+
+        return self.datum_count > 0
 
     def has_datum(self, id):
         "Gets whether this DataSet contains a datum with the given id. "
-        has_it = self.datum_set.filter(id=id).count() > 0
-        assert has_it == (id < self.active_datum_id)
-        return has_it
+        try:
+            d = self.get_datum(id)
+        except ObjectDoesNotExist:
+            assert (id >= self.datum_count)
+            return False
+        assert (id < self.datum_count)
+        return True
 
     def active_datum(self):
-        "Gets the active datum using active_datum_id. "
-        try:
-            return self.datum_set.get(set_id=self.active_datum_id)
-        except ObjectDoesNotExist:
-            raise Exception("No active challenge!")
-        except MultipleObjectsReturned:
-            raise Exception("Too many active challenges! Invalid state?.. ")
-        
+        "Gets the active datum. Throws an exception if it does not exist. "
+        return self.get_datum(self.active_datum_id)
+
     def get_outcomes(self):
+        "Gets all outcomes from the market. "
         return self.market.outcomes.all()
 
     @transaction.atomic
@@ -278,7 +334,7 @@ class DataSet(models.Model):
         if ds == self:
             return
 
-        if self.datum_count <= 0:
+        if not self.has_data():
             raise Exception("Unable to start a set with no datums. ")
 
         if ds != None:
@@ -307,41 +363,82 @@ class DataSet(models.Model):
     def reset(self):
         "Resets active_datum_id to 0. If there is no datum with id of 0, an exception is thrown. "
         if not self.has_data():
-            raise Exception("No active challenge!")
+            raise Exception("Unable to reset a set with no data! ")
+
+        assert self.has_datum(0)
         self.active_datum_id = 0
         self.challenge_start = timezone.now()
         self.save()
 
     def next_challenge_id(self):
+        """
+        Gets the id of the next challenge (datum). 
+        Throws an exception if there is no such datum. 
+        """
         new_id = self.active_datum_id + 1
+
         if not self.has_datum(new_id):
             raise Exception("No next challenge!")
+
         return new_id
+
+
 
     def next(self):
         """
-        Advances this active set to the next datum (challenge) and raises the set_expire_changed signal.
+        Advances this active set to the next datum (challenge) _once_, and raises the dataset_expired signal.
         If there is no datum with such id, the set is made inactive. 
         Returns whether the set is active. 
         """
 
         assert self.is_active
-        old_datum = self.active_datum_id
-        try:    # try advancing the dataset
+
+        print("try advance set %s" % self)
+
+        # Continue only if there is data in the set
+        # should not typically arrive here
+        if not self.has_data():
+            self.stop()
+            logger.info("Abruptly ended empty dataset %s (no challenges whatsoever). " % (self.active_datum_id, str(self)))
+            return
+        
+
+        # get the current challenge
+        try:
+            old_datum = self.active_datum()
+        except ObjectDoesNotExist:  # log an error and deactive the set
+            self.stop()
+            logger.error("Unable to find the active data point with id: %d. Stopping the set. " % (self.active_datum_id))
+            return
+        except MultipleObjectsReturned:
+            raise Exception("Too many points with id: %d! Invalid state?.. " % (self.id))
+        
+        # see if we actually need to advance to the next challenge. 
+        if not self.challenge_expired():
+            return
+
+        # raise the dataset_expired signal
+        dataset_expired.send(self.__class__, datum=old_datum)
+
+        # grab the next challenge (datum)
+        try:
             self.active_datum_id = self.next_challenge_id()
-        except: # make it inactive if no next datum
+        except: # make it inactive if no next datum (this was the last)
             self.is_active = False
             logger.info("Ended challenge #%d for dataset %s (no next challenge). " % (self.active_datum_id, str(self)))
-        else:
-            self.challenge_start = timezone.now()
-            logger.info("Started next challenge #%d for dataset %s. " % (self.active_datum_id, str(self)))
+            self.save()
+            return
+
+        self.challenge_start = self.challenge_end() + self.challenge_duration()
+        logger.info("Started next challenge #%d for dataset %s. Ends at %s" % (self.active_datum_id, str(self), self.challenge_end()))
+
         self.save()
         return self.is_active
 
 
-    def random(self, n_datums):
+    def random(self, n_datums=10):
         """
-        Generates n_datums random datums for this dataset. 
+        Generates some random datums for this dataset. 
         """
         if n_datums <= 0:
             raise ValueError("n_datums must be positive!")
@@ -360,7 +457,7 @@ class DataSet(models.Model):
 
     def save(self, *args, **kwargs):
         dataset_change.send(self.__class__, set=self)
-        #print("event weeee!")
+        print("dataset change weeee!")
         return super().save(*args, **kwargs)
 
 class Datum(models.Model):
@@ -437,17 +534,16 @@ class Order(models.Model):
 
     def set_processed(self):
         """Marks all positions in this order as processed. """
-
         for o in self.position_set.all():
             o.is_processed = True
             o.save()
 
     def is_processed(self):
-        """"Wut. """
+        """Returns whether all positions in this order are processed. """
         return not self.position_set.filter(is_processed=False).exists()
 
     def unprocessed_orders():
-        "Gets all unprocessed orders. "
+        "Retrieves all unprocessed orders from the database. "
         return Order.objects.filter(position__is_processed=False)
 
     def get_position(self, outcome):
@@ -463,6 +559,18 @@ class Order(models.Model):
     # for all selected outcomes. 
     def get_data(self, outcomes):
         return (self, [self.get_position(out) for out in outcomes])
+
+    def group_by_event(self):
+        """
+        Groups all positions in this order by their event.
+        Returns a dictionary of the events with the list of positions on them as the value. 
+        """
+        all_ps = list(self.position_set.all())
+
+        get_ev_id = lambda p: p.outcome.event.id
+        all_ps.sort(key=get_ev_id)
+        return [(ev,list(ps)) for (ev,ps) in groupby(all_ps, key=lambda p: p.outcome.event)]
+
 
     # creates a new order for the given account playing on the given market. 
     @transaction.atomic
@@ -511,7 +619,7 @@ class Position(models.Model):
     # what the claim was
     outcome = models.ForeignKey(Outcome)
     # how much contracts to trade
-    amount = DecimalField()
+    amount = CurrencyField()
 
     # whether the position is processed
     is_processed = models.BooleanField(default=False)
@@ -519,7 +627,7 @@ class Position(models.Model):
     # The price per contract for this position. 
     # Either set by the market maker when it processes the order
     # Or set by the account holder when using an Order Book
-    contract_price = DecimalField()
+    contract_price = CurrencyField()
 
     def new(order, outcome, amount):
         return Position(
