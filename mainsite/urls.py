@@ -23,8 +23,7 @@ urlpatterns = patterns('',
     # user actions
     url(r'^login/$', auth_views.login, name='login'),
     url(r'^logout/$', auth_views.logout, {'next_page':'markets:markets'}, name='logout'),
-    url(r'^user/', markets.views.user_info, name='user'),
-    url(r'^upload/', markets.views.upload_file, name='upload'),
+    url(r'^user/(?P<uid>\w*)', markets.views.user_info, name='user'),
     # market 
     url(r'^market/', include('markets.urls', namespace='markets')),
     ### django-rest-framework

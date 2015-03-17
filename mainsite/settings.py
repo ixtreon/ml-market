@@ -1,5 +1,5 @@
 """
-Django settings for testsite project.
+Django settings for the ml-market project.
 
 For more information on this file, see
 https://docs.djangoproject.com/en/1.7/topics/settings/
