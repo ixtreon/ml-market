@@ -17,7 +17,7 @@
     <InterpreterVersion>3.4</InterpreterVersion>
     <UseIISExpress>true</UseIISExpress>
     <Name>test</Name>
-    <DjangoSettingsModule>testsite.settings</DjangoSettingsModule>
+    <DjangoSettingsModule>mainsite.settings</DjangoSettingsModule>
     <WebBrowserPort>8080</WebBrowserPort>
     <WebBrowserUrl>/admin/</WebBrowserUrl>
   </PropertyGroup>
@@ -27,6 +27,7 @@
     <VisualStudioVersion Condition=" '$(VisualStudioVersion)' == '' ">10.0</VisualStudioVersion>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="doc\conf.py" />
     <Compile Include="manage.py" />
     <Compile Include="markets\admin.py" />
     <Compile Include="markets\apps.py">
@@ -44,13 +45,13 @@
     <Compile Include="markets\log.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="markets\management\commands\runmarket.py">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="markets\marketmaker.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="markets\serializers.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="markets\static\histgraph.js">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="markets\viewsets.py">
@@ -73,35 +74,47 @@
     <Compile Include="mainsite\urls.py" />
     <Compile Include="mainsite\wsgi.py" />
     <Compile Include="mainsite\__init__.py" />
-    <Compile Include="msr_maker\models.py" />
     <Compile Include="msr_maker\__init__.py" />
     <Compile Include="order_book\order_book.py" />
     <Compile Include="order_book\__init__.py" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="doc\index.rst" />
+    <Content Include="doc\makers\index.rst" />
+    <Content Include="doc\makers\msr.rst" />
+    <Content Include="doc\makers\order_book.rst" />
+    <Content Include="doc\market\index.rst" />
+    <Content Include="doc\market\makers.rst" />
+    <Content Include="doc\market\structure.rst" />
     <Content Include="markets\static\countdown.js" />
+    <Content Include="markets\static\mg\metricsgraphics.css" />
+    <Content Include="markets\static\mg\metricsgraphics.min.js" />
     <Content Include="markets\templates\index.html" />
     <Content Include="markets\static\jquery-1.11.1.js" />
     <Content Include="markets\templates\base.html" />
     <Content Include="markets\static\css\base.css" />
     <Content Include="markets\templates\forms\bet_multi.html" />
     <Content Include="markets\templates\forms\bet_single.html" />
-    <Content Include="markets\templates\forms\join_market.html" />
+    <Content Include="markets\templates\market\join.html" />
     <Content Include="markets\templates\forms\view_orders.html" />
     <Content Include="markets\templates\forms\view_players.html" />
     <Content Include="markets\templates\market\index.html" />
     <Content Include="markets\templates\all-markets.html" />
     <Content Include="markets\templates\registration\login.html" />
     <Content Include="markets\templates\upload.html" />
-    <Content Include="markets\templates\user.html" />
+    <Content Include="markets\templates\user\index.html" />
     <Content Include="mainsite\templates\admin\base_site.html" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="doc\market\" />
+    <Folder Include="doc\makers\" />
     <Folder Include="markets\" />
     <Folder Include="markets\management\commands\" />
     <Folder Include="markets\migrations\" />
     <Folder Include="markets\management\" />
     <Folder Include="markets\fields\" />
+    <Folder Include="markets\static\mg\" />
+    <Folder Include="markets\templates\user\" />
     <Folder Include="markets\tests\" />
     <Folder Include="markets\templates\forms\" />
     <Folder Include="markets\uploads\" />
@@ -114,6 +127,7 @@
     <Folder Include="mainsite\templates\" />
     <Folder Include="mainsite\templates\admin\" />
     <Folder Include="msr_maker\" />
+    <Folder Include="doc\" />
     <Folder Include="order_book\" />
   </ItemGroup>
   <ItemGroup>
