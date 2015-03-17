@@ -33,16 +33,18 @@
         {# Total cost approximation #}
         <tr>
             <th colspan="1">Estimated cost:</th>
-            <td><input type="text" name="total_cost" value="0" readonly/></td>
+            <td><input type="text" name="total_cost" value="0"/></td>
         </tr>
         </table>
         <label class="error">{{ form.errors.claim }}</label>
     </p>
 
-
-    {# bet button #}
+        
     <p>
+        {# bet button #}
         <input type="submit" value="Place an order" />
+        {# quote button #}
+        <input type="submit" value="Request a quote" />
     </p>    
 
 
@@ -60,15 +62,16 @@
 
         function validate_amounts() {
             var sum = 0;
+            var all_empty = true;
             for (i = 0; i < btn_amounts.length; ++i) {
                 var a = btn_amounts[i];
-                if(a.value == "")
-                    a.value = "0";
-                else
-                    sum += parseFloat(a.value) * prices[a.id];
+                var amount = parseFloat(a.value);
+                if(amount != 0)
+                    all_empty = false;
+                sum += amount * prices[a.id];
             }
             btn_cost.value = sum
-            if(sum == 0)
+            if(all_empty)
                 place_order.setCustomValidity("Please bet something!")
             else if(sum > funds)
                 place_order.setCustomValidity("You won't have enough funds!")

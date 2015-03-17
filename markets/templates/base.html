@@ -14,8 +14,11 @@
 <header id="nav">
     <table id="nav_bar">
         <tr>
-            <td><a href={% url "index" %}>Market Index</a></td>
-            <td><a href={% url "markets:markets" %}>All Markets</a></td>
+            <td><a href={% url "index" %}>Index</a></td>
+            <td><a href={% url "markets:markets" %}>Markets</a></td>
+            {% if user.is_authenticated %}
+                <td><a href={% url "user" user.username %}>Dashboard</a></td>
+            {% endif %}
         </tr>
     </table>
     <p id="nav_greet">
@@ -23,7 +26,7 @@
         Welcome to the shano market, {{ user.username }}. 
         <a href="{% url "logout" %}">[Log out]</a>
     {% else %}
-        Welcome to the shano market. Please  
+        Welcome to the shano market. Please 
         <a href="{% url "login" %}">[Log in]</a>.
     {% endif %}
     </p>

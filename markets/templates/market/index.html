@@ -6,8 +6,9 @@
 
 {# Check whether the user has an account for this market. #}
 {% if form.market_active %}
+
     {% if form.account == None %}
-        {% include "forms/join_market.html" %}
+        {% include "market/join.html" %}
     {% else %}
         <p>Your current bank is {{ form.account.funds }} credits. </p>
 

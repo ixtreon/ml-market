@@ -6,8 +6,10 @@ from rest_framework.response import Response
 from django.contrib.auth.models import AnonymousUser
 from rest_framework.decorators import api_view, detail_route
 from django.shortcuts import get_object_or_404
+
 ### Used by Django-Rest-Framework 
-### to define the API views for markets' elements. 
+### defines the API views for markets' elements. 
+
 class MarketViewSet(viewsets.ModelViewSet):
     """
     This view lists all active markets and allows creation of new ones. 

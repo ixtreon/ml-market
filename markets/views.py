@@ -12,6 +12,7 @@ from markets.forms import MarketForm, UploadForm, UserForm
 from markets.log import logger
 from django.http.response import HttpResponse
 import json
+from django.contrib.auth.models import User
 
 @login_required
 def index(request):
@@ -29,9 +30,6 @@ class MarketIndexView(generic.ListView):
     # returns all markets (no paging whatsoever)
     def get_queryset(self):
         markets = [m for m in Market.objects.order_by('-pub_date') if m.is_active()]
-        # TODODOODODODODO
-        for m in markets:
-            m.primary_funds = "123"
         return markets
 
     def get_context_data(self, **kwargs):
@@ -48,9 +46,13 @@ class MarketIndexView(generic.ListView):
 
 # displays user information
 @login_required
-def user_info(request):
-    form = UserForm(request.user)
-    return render(request, 'user.html', {
+def user_info(request, uid):
+    if uid:
+        user = get_object_or_404(User, username=uid)
+    else:
+        user = request.user
+    form = UserForm(user)
+    return render(request, 'user/index.html', {
         'form': form,
         })
 
