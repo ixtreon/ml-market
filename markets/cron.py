@@ -41,7 +41,7 @@ Makes sure the cron tracker is up-to-date. """
         else:
             track_cur = None
 
-        print("%s <-> %s" % (track_cur, track_new))
+        # print("%s <-> %s" % (track_cur, track_new))
 
         # proceed only if stuff changed
         if track_cur == track_new:
@@ -74,7 +74,7 @@ Makes sure the cron tracker is up-to-date. """
         self.thread = Thread(target=self.cron.run, daemon=True)
         self.thread.start()
 
-        # get all the active markets / sets
+        # get all the active datasets
         active_sets = set(DataSet.objects.filter(is_active=True))
         if not active_sets:
             logger.info("[Cron] No active markets. ")
@@ -83,7 +83,7 @@ Makes sure the cron tracker is up-to-date. """
         logger.info("Tracking %d currently active market(s): %s" 
                     % (len(active_sets), ", ".join([str(s.market) for s in active_sets])))
 
-        # advance if needed and start tracking them
+        # advance and start tracking the active sets, if needed
         for s in active_sets:
             self.advance_set(s)
 
@@ -95,14 +95,18 @@ Makes sure the cron tracker is up-to-date. """
         
         assert set.is_active
 
+        # make sure we haven't tracked this market already
+        if mkt in self.jobs:
+            if self.jobs[mkt][0] != set:
+                logger.warn("[Cron] Changed dataset for market '%s' from '%s' to '%s'" % (mkt, self.jobs[mkt][0], set))
+            del self.jobs[mkt]
+
         # advance to the next challenge
         while set.is_active and set.challenge_expired():
             set.next()
 
         if set.is_active:   # if there's a current challenge
             assert (not set.challenge_expired())    # current chalenge must have expired
-            assert (mkt not in self.jobs)           # we mustn't track this set or its market
-
 
             
             # re-add the set to the scheduler
