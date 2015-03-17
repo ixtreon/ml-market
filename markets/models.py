@@ -14,6 +14,7 @@ from enum import Enum
 from enumfields.fields import EnumIntegerField
 from _datetime import timedelta
 import itertools
+from itertools import groupby
 
 ## Decimal handling
 decimal_places = 2
@@ -457,7 +458,6 @@ class DataSet(models.Model):
 
     def save(self, *args, **kwargs):
         dataset_change.send(self.__class__, set=self)
-        print("dataset change weeee!")
         return super().save(*args, **kwargs)
 
 class Datum(models.Model):
@@ -663,3 +663,71 @@ class Document(models.Model):
 
     def __str__(self):
         return self.fileName()
+
+
+    
+class AccountSupply(models.Model):
+    """
+    Represents the current holdings of an account for a given outcome (variable). 
+
+    Contains the amount of shares held by present by the account owner. 
+    """
+    account = models.ForeignKey(Account)
+    outcome = models.ForeignKey(Outcome)
+    amount = CurrencyField()
+
+    @staticmethod
+    def get(acc, outcome):
+        "Gets or creates the supply for the given account. "
+        try:
+            supply = outcome.accountsupply_set.get(account=acc)
+        except models.ObjectDoesNotExist:
+            supply = AccountSupply(account=acc, outcome=outcome)
+            supply.save()
+        except MultipleObjectsReturned:
+            raise Exception("Too many supplies for account '%s'! Invalid state?.. " % (acc))
+        return supply
+
+    @staticmethod
+    @transaction.atomic
+    def accept_order(order):
+        acc = order.account
+        for pos in order.position_set.all():
+            supply = AccountSupply.get(acc, pos.outcome)
+            supply.amount += pos.amount
+            supply.save()
+
+            
+class MarketSupply(models.Model):
+    """
+    The current market supply for a given outcome. 
+    """
+    outcome = models.OneToOneField(Outcome)
+    amount = CurrencyField()
+
+    @staticmethod
+    def get(outcome):
+        "Gets or creates the supply for the given outcome. "
+        try:    # try to fetch an existing supply instance
+            supply = outcome.marketsupply
+        except models.ObjectDoesNotExist:
+            supply = MarketSupply(outcome=outcome)
+            supply.save()
+        except MultipleObjectsReturned:
+            raise Exception("Too many supplies for a single outcome! Invalid state?.. ")
+        return supply
+
+    @staticmethod
+    def for_event(ev):
+        "Gets the market maker supplies for all outcomes in the given event. "
+        return { out: MarketSupply.get(out).amount for out in ev.outcomes.all() }
+
+    @staticmethod
+    @transaction.atomic
+    def accept_order(order):
+        """Adds the amounts from the given order to the market supply. """
+        acc = order.account
+        for pos in order.position_set.all():
+            supply = MarketSupply.get(pos.outcome)
+            supply.amount -= pos.amount
+            supply.save()
