@@ -54,6 +54,12 @@
     <Compile Include="markets\static\histgraph.js">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="markets\tests\test_models.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="markets\tests\test_tools.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="markets\viewsets.py">
       <SubType>Code</SubType>
     </Compile>
@@ -66,7 +72,7 @@
     <Compile Include="markets\signals.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="markets\tests.py" />
+    <Compile Include="markets\tests\test_cron.py" />
     <Compile Include="markets\urls.py" />
     <Compile Include="markets\views.py" />
     <Compile Include="markets\__init__.py" />
