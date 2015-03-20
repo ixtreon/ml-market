@@ -90,7 +90,7 @@ Makes sure the cron tracker is up-to-date. """
     @staticmethod
     def advance_set(set):
         """Advances this dataset to its current challenge and adds it to the scheduler, if necessary. """
-        print("ai karamba!")
+
         self = Cron.instance
         t_now = timezone.now()
         mkt = set.market

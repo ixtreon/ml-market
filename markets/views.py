@@ -75,7 +75,7 @@ def market_index(request, pk):
     a = m.primary_account(request.user)
 
     if request.method == 'POST' and a != None:
-        # user wants to post a message
+        # user wants to post a bid
         form = MarketForm(m, a, post=request.POST) # Bind data from request.POST into a form
         # place the order
         ord = a.place_order(m, form.position)

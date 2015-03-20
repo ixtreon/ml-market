@@ -10,6 +10,7 @@ https://docs.djangoproject.com/en/1.7/ref/settings/
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
+import sys
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
 
@@ -72,7 +73,9 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-    }
+        'TEST_NAME': os.path.join(BASE_DIR, 'test.db.sqlite3'),
+        'OPTIONS': {'timeout': 30}
+    },
 }
 
 # Internationalization
@@ -131,8 +134,19 @@ LOGGING = {
         },
     }
 }
-# http://stackoverflow.com/questions/4558879/python-django-log-to-console-under-runserver
 # make all loggers use the console if run internally. 
+# http://stackoverflow.com/questions/4558879/python-django-log-to-console-under-runserver
 if DEBUG:
     for logger in LOGGING['loggers']:
         LOGGING['loggers'][logger]['handlers'] = ['console']
+
+## use the proper sqlite database reference when testing
+## http://stackoverflow.com/questions/8416987/django-sqlite3-operationalerror-no-such-table
+#if 'test' in sys.argv:
+#    DATABASES = {
+#        'default': {
+#            'ENGINE': 'django.db.backends.sqlite3',
+#            'NAME': os.path.join(os.path.dirname(__file__), 'db.sqlite3'),
+#            'TEST_NAME': os.path.join(os.path.dirname(__file__), 'db.sqlite3'),
+#        }
+#    }
