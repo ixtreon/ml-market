@@ -2,7 +2,7 @@
 from markets.models import DataSet
 from sched import scheduler
 from django.utils import timezone
-from threading import Thread
+from threading import Thread, Timer
 import time
 from markets.signals import dataset_change
 from functools import partial
@@ -48,12 +48,12 @@ Makes sure the cron tracker is up-to-date. """
             return
 
         if track_cur:
-            print("Untracking challenge %s ending at %s" % (self.jobs[mkt][:2]))
-            self.cron.cancel(self.jobs[mkt][2])
+            print("Untracking %s. Ends at %s" % (self.jobs[mkt][:2]))
+            self.jobs[mkt][2].cancel()
+            del self.jobs[mkt]
 
         if track_new:
             self.add(mkt, set, track_new)
-            print("Tracking challenge %s ending at %s" % (self.jobs[mkt][:2]))
 
 
 
@@ -87,13 +87,16 @@ Makes sure the cron tracker is up-to-date. """
         for s in active_sets:
             self.advance_set(s)
 
-
-    def advance_set(self, set):
+    @staticmethod
+    def advance_set(set):
         """Advances this dataset to its current challenge and adds it to the scheduler, if necessary. """
+        print("ai karamba!")
+        self = Cron.instance
         t_now = timezone.now()
         mkt = set.market
         
-        assert set.is_active
+        if not set.is_active:
+            return
 
         # make sure we haven't tracked this market already
         if mkt in self.jobs:
@@ -105,6 +108,8 @@ Makes sure the cron tracker is up-to-date. """
         while set.is_active and set.challenge_expired():
             set.next()
 
+        print("leave shit")
+
         if set.is_active:   # if there's a current challenge
             assert (not set.challenge_expired())    # current chalenge must have expired
 
@@ -112,11 +117,18 @@ Makes sure the cron tracker is up-to-date. """
             # re-add the set to the scheduler
             t_end = set.challenge_end()
             self.add(mkt, set, t_end)
-            
-            logger.info("Tracking challenge #%d of data-set %s (expires in %s)" 
-                        % (set.active_datum_id, str(set), str(t_end-t_now)))
 
     def add(self, mkt, set, t_end):
         """Executes the advance_set() method in t_end seconds with ``set`` as the argument. """
-        job_id = self.cron.enterabs(t_end, 1, self.advance_set, kwargs={'set': set})
-        self.jobs[mkt] = (set, t_end, job_id)
+        
+
+        t_left = t_end - timezone.now()
+
+        if t_left.total_seconds() < 0:
+            return
+
+        t = Timer(t_left.total_seconds(), Cron.advance_set, kwargs={'set': set})
+        t.daemon = True
+        t.start()
+        self.jobs[mkt] = (set, t_end, t)
+        print("Tracking %s. Ends at %s" % (self.jobs[mkt][:2]))
