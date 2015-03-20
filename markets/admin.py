@@ -81,8 +81,8 @@ class DataSetAdminForm(forms.ModelForm):
         super(DataSetAdminForm, self).__init__(*args, **kwargs)
         if self.instance.id:    # if the set is already created
             # disable uploading new data
-            self.fields['n_random_entries'].widget.attrs['readonly'] = True
-            self.fields['upload_file'].widget.attrs['readonly'] = True
+            self.fields['n_random_entries'].widget.attrs['readonly'] = 'True'
+            self.fields['upload_file'].widget.attrs['readonly'] = 'True'
             # disable market changing
             self.fields['market'].queryset = Market.objects.filter(dataset=self.instance)
             self.is_new = False
@@ -119,7 +119,7 @@ class DataSetAdminForm(forms.ModelForm):
             # TODO: check uploaded file's schema 
             # and raise error if it doesn't match events
             if has_file:
-                raise forms.ValidationError("Uploaded file parsing is not yet available!")
+                raise forms.ValidationError("Uploaded file parsing is not yet implemented!")
 
     # save the cleaned data to the form
     def save(self, commit=True):
@@ -166,6 +166,7 @@ class DataSetAdmin(admin.ModelAdmin):
     # whenever a new model is saved/created
     def save_model(self, request, obj, form, change):
         obj.save()
+
         # generate random data or (TODO) import from a file
         if form.is_new:
             if form.n_random:
