@@ -111,6 +111,25 @@ class Market(models.Model):
         return self.active_set() != None
     is_active.boolean = True    # show it as an icon in the admin panel
 
+
+    def parse_bid(self, post):
+        """
+        Parses the data from the given POST request. 
+        Returns a list of tuples containing the amount wagered on each outcome for this market. 
+        """
+        pos = []
+        outcomes = Outcome.objects.filter(event__market=self)
+
+        for ord in outcomes:
+            try:
+                ord_pos = int(post["pos_%i" % (ord.id)])
+            except:
+                ord_pos = 0
+
+            if ord_pos != 0:
+                pos.append((ord, ord_pos))
+        return pos
+
     def __str__(self):
         return self.description
 
@@ -155,12 +174,19 @@ class Account(models.Model):
         """
         Tries to place an order from this account on the given market with the given positions. 
         Each position is a tuple of an outcome, and the amount to wager on that outcome. 
+
+        Returns None if the position list is empty. 
         """
+
+        if len(position):
+            return None
+
         try:
             order = Order.new(market, self, position)
         except Exception as err:
             raise Exception("failed creating an order: " + str(err))
-        # send the order_placed signal. 
+
+        # sends the order_placed signal. 
         order_placed.send(sender=self.__class__, order=order)
         return order
 
@@ -399,8 +425,8 @@ class DataSet(models.Model):
         # Continue only if there is data in the set
         # should not typically arrive here
         if not self.has_data():
-            self.stop()
             logger.info("Abruptly ended empty dataset %s (no challenges whatsoever). " % (self.active_datum_id, str(self)))
+            self.stop()
             return
         
 
@@ -605,6 +631,7 @@ class Order(models.Model):
         assert (self.account.market == self.datum.data_set.market)
         return self.account.market
 
+    @transaction.atomic
     def cancel(self):
         self.set_processed()
         self.is_successful = False
