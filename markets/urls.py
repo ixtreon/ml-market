@@ -2,7 +2,7 @@ from django.conf.urls import patterns, url, include
 
 from markets import views
 from rest_framework import routers
-from markets.viewsets import MarketViewSet
+from markets.api.viewsets import MarketViewSet
 
 
 

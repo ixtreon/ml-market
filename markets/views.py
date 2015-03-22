@@ -71,18 +71,25 @@ def market_activity(request, pk):
 def market_index(request, pk):
     
     market_id = int(pk)
-    m = get_object_or_404(Market, id=market_id)
-    a = m.primary_account(request.user)
+    mkt = get_object_or_404(Market, id=market_id)
+    acc = mkt.primary_account(request.user)
 
-    if request.method == 'POST' and a != None:
+    if request.method == 'POST' and acc != None:
         # user wants to post a bid
-        form = MarketForm(m, a, post=request.POST) # Bind data from request.POST into a form
+        form = MarketForm(mkt, acc, post=request.POST) # Bind data from request.POST into a form
+
+        # parse the position from the POST data
+        self.position = mkt.parse_bid(post)
+
         # place the order
-        ord = a.place_order(m, form.position)
+        ord = acc.place_order(mkt, form.position)
+        
         # adds the newly created order to the form before displaying it. 
-        form.orders.append(ord.get_data(form.outcomes))
+        # ONLY if the order was successfully created (i.e. non-empty)
+        if ord:
+            form.orders.append(ord.get_data(form.outcomes))
     else:   # just display the market page
-        form = MarketForm(m, a)
+        form = MarketForm(mkt, acc)
 
  
     return render(request, 'market/index.html', {
@@ -105,7 +112,7 @@ def order_remove(request, pk):
     u = request.user
     ord = get_object_or_404(Order, account__user=u, id=pk)
     m = ord.account.market
-    ord.cancel()     # ord.cancel throws an exception for invalid orders
+    ord.cancel()     # throws an exception for invalid orders
     return HttpResponseRedirect(reverse('markets:market', args=(m.id,)))
 
 # handles users uploading files

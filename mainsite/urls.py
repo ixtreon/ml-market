@@ -4,11 +4,13 @@ from django.contrib.auth import views as auth_views
 import markets.views
 from django.views.generic.base import TemplateView
 from rest_framework import routers
-from markets.viewsets import *
+from markets.api.viewsets import *
+from markets.api.views import api_bid, api_register, api_cancel_bid
 
 
 # Routers are used with django-rest-framework to automatically map views to urls
 router = routers.DefaultRouter()
+router.register(r'play', PlayViewSet, base_name='play')
 router.register(r'markets', MarketViewSet)
 router.register(r'accounts', AccountViewSet)
 router.register(r'datasets', DataSetViewSet)
@@ -29,4 +31,8 @@ urlpatterns = patterns('',
     ### django-rest-framework
     url(r'^api/', include(router.urls)),
     url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
+
+    url(r'^api/bid/(?P<mkt>\w*)$', api_bid, name='api_bid'),
+    url(r'^api/cancel/(?P<pk>\w*)$', api_cancel_bid, name='api_cancel_bid'),
+    url(r'^api/register/(?P<pk>\w*)$', api_register, name='api_register'),
 )

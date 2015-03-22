@@ -27,45 +27,12 @@ class MarketForm(forms.Form):
 
     template_name = 'market/detail.html'
 
-    errors = {}
-
-    def validate(self):
-        self.errors = {}
-
-        # TODO: restore server-side validation
-        # Note this doesn't check for forged orders
-        # the market maker should perform validation anyway. 
-
-        #    # check if amount is non-null, valid and not greater than current funds
-        #    if self.amount == None:
-        #        self.errors['amount'] = "Please select the amount to bet. "
-        #    elif self.amount > self.account.funds:
-        #        self.errors["amount"] = "You've bet more than you have!"
-        #    elif self.amount < 0:
-        #        pass    # for now
-
-        return len(self.errors) == 0 
-
-
 
     def json_prices(self):
         "Gets the outcomes' current prices in json format. "
         z = dict(Outcome.objects.filter(event__market=self.market).values_list('id', 'current_price'))
         return json.dumps(z, cls=DjangoJSONEncoder)
 
-    # Gets the user order information
-    # from the POST request
-    def read_post_position(self, post):
-        pos = []
-        for ord in self.outcomes:
-            try:
-                ord_pos = int(post["pos_%i" % (ord.id)])
-            except:
-                ord_pos = 0
-
-            if ord_pos != 0:
-                pos.append((ord, ord_pos))
-        return pos
 
     def __init__(self, market, account, *args, **kwargs):
         self.market = market
@@ -84,7 +51,8 @@ class MarketForm(forms.Form):
 
             if kwargs.get('post'):
                 post = kwargs['post']
-                self.position = self.read_post_position(post)
+                self.position = market.parse_bid(post)
+
 
         super(MarketForm, self).__init__()
 

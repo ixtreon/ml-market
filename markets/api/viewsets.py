@@ -6,9 +6,21 @@ from rest_framework.response import Response
 from django.contrib.auth.models import AnonymousUser
 from rest_framework.decorators import api_view, detail_route
 from django.shortcuts import get_object_or_404
+from rest_framework.reverse import reverse
+from rest_framework.permissions import IsAuthenticated
 
 ### Used by Django-Rest-Framework 
 ### defines the API views for markets' elements. 
+
+class PlayViewSet(viewsets.ViewSet):
+    permission_classes = (IsAuthenticated, )
+    def list(self, request):
+        return Response({
+            "bid": reverse('api_bid', kwargs={'mkt':''}, request=request),
+            "cancel_bid": reverse('api_cancel_bid', kwargs={'pk':''}, request=request),
+            "register": reverse('api_register', kwargs={'pk':''}, request=request),
+            })
+
 
 class MarketViewSet(viewsets.ModelViewSet):
     """
