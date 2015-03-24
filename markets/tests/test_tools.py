@@ -2,6 +2,21 @@ from markets.models import Market, DataSet, Outcome, Event
 
 class TestTools():
 
+    @staticmethod
+    def setup_vs():
+        """
+        Sets up the django environment if running the tests from the Visual Studio Test Explorer instead of the command-line. 
+
+        Does nothing if tests are executed from the command-line. 
+
+        See https://pytools.codeplex.com/workitem/1485
+        """
+        try:
+            import django
+            django.setup()
+        except:
+            pass
+
 
     @staticmethod
     def create_binary_market(mkt_name = "TestMarket", event_name = "TestEvent"):
@@ -9,7 +24,7 @@ class TestTools():
         
         mkt = Market.objects.create(description=mkt_name)
 
-        TestTools.create_event(mkt)
+        TestTools.create_event(mkt, n_outcomes=2)
 
         mkt.save()
         return mkt
