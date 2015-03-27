@@ -7,8 +7,9 @@
 ml-market: An online prediction market framework. 
 =====================================
 
+ml-market is a software for creating online machine learning markets written in Python with the help of Django, jQuery, and Django REST framework.
 
-While it implements a flexible prediction market model with a 
+Machine learning markets are a type of prediction markets where a number of traders interact with a central market authority (a market maker) with the purpose of making predictions concerning the possible outcomes of some unknown event. Markets should be made in such a way as to incentivise participants to bet according to their true beliefs in order to obtain a reliable estimate on the outcome of the event. 
 
 Contents:
 
