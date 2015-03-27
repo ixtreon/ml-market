@@ -95,6 +95,9 @@
     <Content Include="doc\market\index.rst" />
     <Content Include="doc\market\makers.rst" />
     <Content Include="doc\market\structure.rst" />
+    <Content Include="doc\market\tests.rst">
+      <SubType>Code</SubType>
+    </Content>
     <Content Include="markets\static\countdown.js" />
     <Content Include="markets\static\mg\metricsgraphics.css" />
     <Content Include="markets\static\mg\metricsgraphics.min.js" />

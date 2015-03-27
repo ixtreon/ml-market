@@ -9,6 +9,9 @@ db.sqlite3
 # user uploads folder
 /uploads/
 
+#Django migrations
+migrations/
+
 # Build results
 
 [Dd]ebug/
@@ -18,6 +21,7 @@ build/
 [Bb]in/
 [Oo]bj/
 __pycache__/
+doc/_build/
 
 # Enable "build/" folder in the NuGet Packages folder since NuGet packages use it for MSBuild targets
 !packages/*/build/

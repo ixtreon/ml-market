@@ -42,6 +42,7 @@ class Interval():
 
 
 class Market(models.Model):
+    name = models.CharField(max_length=255, default='MarketName')
     description = models.CharField(max_length=255, default='Add a description here. ')
 
     pub_date = models.DateTimeField('Date Published')
@@ -138,17 +139,7 @@ class Market(models.Model):
         if self.pub_date == None:
             self.pub_date = timezone.now()
         super(Market, self).save()
-    
-# contains info about the state of a given market at a given time
-# that is the current price, as determined by the processed orders
-# and the previous state (including previous prices of course)
-# NYI
-class MarketState(models.Model):
-    market = models.ForeignKey(Market)
-    # previous state
-    # current prices
-    # list of processed orders
-    # timestamp
+
 
 class Account(models.Model):
     """
@@ -178,13 +169,16 @@ class Account(models.Model):
         Returns None if the position list is empty. 
         """
 
-        if len(position):
+        if not position:
             return None
 
         try:
             order = Order.new(market, self, position)
         except Exception as err:
             raise Exception("failed creating an order: " + str(err))
+
+        assert (not order.is_processed())
+        assert (not order.is_successful)
 
         # sends the order_placed signal. 
         order_placed.send(sender=self.__class__, order=order)
@@ -691,9 +685,7 @@ class Document(models.Model):
     def __str__(self):
         return self.fileName()
 
-
-    
-class AccountSupply(models.Model):
+class AccountBalance(models.Model):
     """
     Represents the current holdings of an account for a given outcome (variable). 
 
@@ -707,9 +699,9 @@ class AccountSupply(models.Model):
     def get(acc, outcome):
         "Gets or creates the supply for the given account. "
         try:
-            supply = outcome.accountsupply_set.get(account=acc)
+            supply = outcome.accountbalance_set.get(account=acc)
         except models.ObjectDoesNotExist:
-            supply = AccountSupply(account=acc, outcome=outcome)
+            supply = AccountBalance(account=acc, outcome=outcome)
             supply.save()
         except MultipleObjectsReturned:
             raise Exception("Too many supplies for account '%s'! Invalid state?.. " % (acc))
@@ -720,12 +712,12 @@ class AccountSupply(models.Model):
     def accept_order(order):
         acc = order.account
         for pos in order.position_set.all():
-            supply = AccountSupply.get(acc, pos.outcome)
+            supply = AccountBalance.get(acc, pos.outcome)
             supply.amount += pos.amount
             supply.save()
 
             
-class MarketSupply(models.Model):
+class MarketBalance(models.Model):
     """
     The current market supply for a given outcome. 
     """
@@ -738,7 +730,7 @@ class MarketSupply(models.Model):
         try:    # try to fetch an existing supply instance
             supply = outcome.marketsupply
         except models.ObjectDoesNotExist:
-            supply = MarketSupply(outcome=outcome)
+            supply = MarketBalance(outcome=outcome)
             supply.save()
         except MultipleObjectsReturned:
             raise Exception("Too many supplies for a single outcome! Invalid state?.. ")
@@ -747,7 +739,7 @@ class MarketSupply(models.Model):
     @staticmethod
     def for_event(ev):
         "Gets the market maker supplies for all outcomes in the given event. "
-        return { out: MarketSupply.get(out).amount for out in ev.outcomes.all() }
+        return { out: MarketBalance.get(out).amount for out in ev.outcomes.all() }
 
     @staticmethod
     @transaction.atomic
@@ -755,6 +747,6 @@ class MarketSupply(models.Model):
         """Adds the amounts from the given order to the market supply. """
         acc = order.account
         for pos in order.position_set.all():
-            supply = MarketSupply.get(pos.outcome)
+            supply = MarketBalance.get(pos.outcome)
             supply.amount -= pos.amount
             supply.save()

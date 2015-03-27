@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponseRedirect
 from django.core.urlresolvers import reverse
 
-from markets.models import Market, Account, Document, Order, Outcome
+from markets.models import Market, Account, Order, Outcome, AccountBalance
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.views import generic
@@ -38,9 +38,9 @@ class MarketIndexView(generic.ListView):
         # Then append to each market the current user's funds
         u = self.request.user
         for m in context['markets']:
-            usr_mkt_account = m.primary_account(u)
-            if usr_mkt_account:
-                m.primary_funds = usr_mkt_account.funds
+            acc = m.primary_account(u)
+            if acc:
+                m.primary_funds = acc.funds
         return context
 
 
@@ -79,11 +79,10 @@ def market_index(request, pk):
         form = MarketForm(mkt, acc, post=request.POST) # Bind data from request.POST into a form
 
         # parse the position from the POST data
-        self.position = mkt.parse_bid(post)
+        form.position = mkt.parse_bid(request.POST)
 
         # place the order
         ord = acc.place_order(mkt, form.position)
-        
         # adds the newly created order to the form before displaying it. 
         # ONLY if the order was successfully created (i.e. non-empty)
         if ord:
@@ -117,36 +116,36 @@ def order_remove(request, pk):
 
 # handles users uploading files
 # TODO: file verification, size check, management
-@login_required
-def upload_file(request, **kwargs):
+#@login_required
+#def upload_file(request, **kwargs):
 
-    u = request.user
+#    u = request.user
 
-    # Handle file upload
-    if request.method == 'POST':
-        form = UploadForm(u, request.POST, request.FILES)
+#    # Handle file upload
+#    if request.method == 'POST':
+#        form = UploadForm(u, request.POST, request.FILES)
 
-        try:
-            file_data = request.FILES['file']
-        except:
-            return HttpResponseRedirect(reverse('upload'))
-        newdoc = Document(
-            file = file_data,
-            user = u)
-        newdoc.save()
-        logger.info("User %s uploaded file '%s'" % (str(u), file_data))
-        # Redirect to the document list after POST
-        return HttpResponseRedirect(reverse('upload'))
-    else:
-        form = UploadForm(u) # A empty, unbound form
+#        try:
+#            file_data = request.FILES['file']
+#        except:
+#            return HttpResponseRedirect(reverse('upload'))
+#        newdoc = Document(
+#            file = file_data,
+#            user = u)
+#        newdoc.save()
+#        logger.info("User %s uploaded file '%s'" % (str(u), file_data))
+#        # Redirect to the document list after POST
+#        return HttpResponseRedirect(reverse('upload'))
+#    else:
+#        form = UploadForm(u) # A empty, unbound form
 
-    ## Load documents for the list page
-    #try:
-    #    documents = Document.objects.filter(user=u)
-    #except:
-    #    documents = None
+#    ## Load documents for the list page
+#    #try:
+#    #    documents = Document.objects.filter(user=u)
+#    #except:
+#    #    documents = None
 
-    # Render list page with the form
-    return render(request, 'upload.html', {
-        'form': form,
-    })
+#    # Render list page with the form
+#    return render(request, 'upload.html', {
+#        'form': form,
+#    })

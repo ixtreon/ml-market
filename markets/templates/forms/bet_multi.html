@@ -17,14 +17,18 @@
                 <th rowspan="2">
                     {{ e.0 }}
                 </th>
-                {% for o in e.1 %}
+                {% for od in e.1 %}
                     <td>
-                        {{ o.name }} 
+                        {{ od.outcome.name }} 
                         <br/>
-                        B: <b>{{o.buy_offer}}</b>
-                        S: <b>{{o.sell_offer}}</b>
+                        <a data-tool="{{od.outcome.price_tooltip}}" class="tooltip bottom" name="outcome_info">
+                        B: <b>{{od.outcome.buy_offer}}</b>
+                        S: <b>{{od.outcome.sell_offer}}</b>
+                        </a>
                         <br/>
-                        <input type="number" id="{{o.id}}" name="pos_{{o.id}}" class="amount" value="0" oninput="validate_amounts()"/>
+                        CUR: {{od.amount}}
+                        <br/>
+                        <input type="number" id="{{od.outcome.id}}" name="pos_{{od.outcome.id}}" class="amount" value="0" oninput="validate_amounts()"/>
                     </td>
                 {% endfor %}
             </tr>

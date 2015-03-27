@@ -108,8 +108,6 @@ Makes sure the cron tracker is up-to-date. """
         while set.is_active and set.challenge_expired():
             set.next()
 
-        print("leave shit")
-
         if set.is_active:   # if there's a current challenge
             assert (not set.challenge_expired())    # current chalenge must have expired
 
@@ -131,4 +129,4 @@ Makes sure the cron tracker is up-to-date. """
         t.daemon = True
         t.start()
         self.jobs[mkt] = (set, t_end, t)
-        print("Tracking %s. Ends at %s" % (self.jobs[mkt][:2]))
+        #print("Tracking %s. Ends at %s" % (self.jobs[mkt][:2]))

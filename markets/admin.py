@@ -1,5 +1,5 @@
 from django.contrib import admin, messages
-from markets.models import Market, Outcome, Order, DataSet, Datum, Document, Event, Result, Position
+from markets.models import Market, Outcome, Order, DataSet, Datum, Event, Result, Position
 from django.forms.fields import IntegerField
 from django import forms
 from django.utils import timezone
@@ -73,7 +73,7 @@ class DataSetAdminForm(forms.ModelForm):
     # the amount of random entries to generate. 
     n_random_entries = forms.IntegerField(initial=0, required=False)
     # the uploaded file to use as an input. 
-    upload_file = forms.ModelChoiceField(queryset=Document.objects.none(), empty_label='None', required=False)
+    # upload_file = forms.ModelChoiceField(queryset=Document.objects.none(), empty_label='None', required=False)
 
     # gets the files this user has uploaded
     # also removes the upload buttons if editing a set

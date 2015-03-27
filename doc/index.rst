@@ -4,9 +4,11 @@
    contain the root `toctree` directive.
    
 
-Welcome to ML-Market's documentation!
+ml-market: An online prediction market framework. 
 =====================================
 
+
+While it implements a flexible prediction market model with a 
 
 Contents:
 

@@ -1,7 +1,7 @@
 
 from markets.signals import order_placed
 from django.db import transaction
-from markets.models import Outcome, Order, to_decimal, MarketSupply, AccountSupply
+from markets.models import Outcome, Order, to_decimal, MarketBalance, AccountBalance
 from itertools import groupby
 from math import *
 from decimal import Decimal
@@ -32,7 +32,7 @@ class MSRMaker(MarketMaker):
         """
 
         # get the supply and the current risk
-        supply = MarketSupply.for_event(ev)
+        supply = MarketBalance.for_event(ev)
         current_risk = self.log_cost(supply.values())
         prices = {}
 
@@ -71,10 +71,10 @@ class MSRMaker(MarketMaker):
         if ord.is_successful:
 
             # update the market maker amounts
-            MarketSupply.accept_order(ord)
+            MarketBalance.accept_order(ord)
 
             # update the account amounts
-            AccountSupply.accept_order(ord)
+            AccountBalance.accept_order(ord)
 
             # deduct the total transaction cost from the account
             acc.funds -= cost
@@ -108,17 +108,17 @@ class MSRMaker(MarketMaker):
         return cost
 
     def eval_cost(self, ev, ps):
-        "Gets the cost of accepting the given order represented as a list of positions. "
+        "Evaluates the cost of accepting the given order represented as a list of positions. "
         # eval current risk for the maker
-        supply = MarketSupply.for_event(ev)
+        supply = MarketBalance.for_event(ev)
         current_risk = self.log_cost(supply.values())
         # get the supply after completing the trade
-        for p in ps:    
+        for p in ps:
             assert (p.outcome in supply)
             supply[p.outcome] -= p.amount
         # and eval the new risk with it
         new_risk = self.log_cost(supply.values())    
-        # cost is the difference in risk
+        # cost is the change in risk
         return new_risk - current_risk
 
     def end_challenge(self, datum):

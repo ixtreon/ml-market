@@ -140,6 +140,10 @@ if DEBUG:
     for logger in LOGGING['loggers']:
         LOGGING['loggers'][logger]['handlers'] = ['console']
 
+if 'graph_models' in sys.argv:
+    for logger in LOGGING['loggers']:
+        LOGGING['loggers'][logger]['level'] = 'CRITICAL'
+
 ## use the proper sqlite database reference when testing
 ## http://stackoverflow.com/questions/8416987/django-sqlite3-operationalerror-no-such-table
 #if 'test' in sys.argv:

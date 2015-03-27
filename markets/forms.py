@@ -1,5 +1,5 @@
 from django import forms
-from markets.models import Market, Outcome, Order, Document, Event
+from markets.models import Market, Outcome, Order, Document, Event, AccountBalance
 from django.core import validators
 from _decimal import Decimal
 from django.forms import widgets
@@ -29,21 +29,30 @@ class MarketForm(forms.Form):
 
 
     def json_prices(self):
-        "Gets the outcomes' current prices in json format. "
-        z = dict(Outcome.objects.filter(event__market=self.market).values_list('id', 'current_price'))
-        return json.dumps(z, cls=DjangoJSONEncoder)
+        "Dumps the current prices of this market's outcomes in json format. "
+        outcomes = Outcome.objects.filter(event__market=self.market)
+        outcome_list = outcomes.values_list('id', 'current_price')
+        outcome_dict = dict(outcome_list)
 
+        return json.dumps(outcome_dict, cls=DjangoJSONEncoder)
+
+    class OutcomeData():
+        def __init__(self, acc, out):
+            self.outcome = out
+            self.account = acc
+            self.amount = AccountBalance.get(acc, out).amount
 
     def __init__(self, market, account, *args, **kwargs):
         self.market = market
         self.market_active = market.is_active()
-        self.events = [ (e.description, e.outcomes.all()) for e in market.events.all()]
+        self.events = [ (e.description, [MarketForm.OutcomeData(account, out) for out in e.outcomes.all()]) for e in market.events.all()]
         self.outcomes = list(Outcome.objects.filter(event__market=self.market))
 
         self.account = account
 
         # get the outcome prices in json to pass to the template
         self.prices = self.json_prices()
+
 
         if account:
             # get all orders from this user
