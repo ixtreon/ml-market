@@ -1,0 +1,843 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>markets.models &mdash; ML-Market 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="ML-Market 0.1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">ML-Market 0.1 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for markets.models</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">from</span> <span class="nn">django.db</span> <span class="kn">import</span> <span class="n">models</span><span class="p">,</span> <span class="n">transaction</span>
+<span class="kn">from</span> <span class="nn">django.utils</span> <span class="kn">import</span> <span class="n">timezone</span>
+<span class="kn">from</span> <span class="nn">django.contrib.auth.models</span> <span class="kn">import</span> <span class="n">User</span>
+
+<span class="kn">from</span> <span class="nn">decimal</span> <span class="kn">import</span> <span class="n">Decimal</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">from</span> <span class="nn">django.core.exceptions</span> <span class="kn">import</span> <span class="n">ObjectDoesNotExist</span><span class="p">,</span> <span class="n">MultipleObjectsReturned</span>
+<span class="kn">from</span> <span class="nn">markets.signals</span> <span class="kn">import</span> <span class="n">order_placed</span><span class="p">,</span> <span class="n">dataset_change</span><span class="p">,</span> <span class="n">dataset_expired</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">markets.log</span> <span class="kn">import</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">enum</span> <span class="kn">import</span> <span class="n">Enum</span>
+<span class="kn">from</span> <span class="nn">enumfields.fields</span> <span class="kn">import</span> <span class="n">EnumIntegerField</span>
+<span class="kn">from</span> <span class="nn">_datetime</span> <span class="kn">import</span> <span class="n">timedelta</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">groupby</span>
+
+<span class="c">## Decimal handling</span>
+<span class="n">decimal_places</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="k">def</span> <span class="nf">to_decimal</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">Decimal</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="n">quantize</span><span class="p">(</span><span class="n">Decimal</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span> <span class="o">**</span> <span class="o">-</span><span class="n">decimal_places</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">CurrencyField</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">models</span><span class="o">.</span><span class="n">DecimalField</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">decimal_places</span><span class="o">=</span><span class="n">decimal_places</span><span class="p">,</span> <span class="n">max_digits</span><span class="o">=</span><span class="mi">7</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">t</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">timezone</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+
+<span class="k">class</span> <span class="nc">MarketType</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+    <span class="n">order_book</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">parimutuel</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">msr_maker</span> <span class="o">=</span> <span class="mi">3</span>
+
+<span class="k">class</span> <span class="nc">Interval</span><span class="p">():</span>
+    <span class="n">Years</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">dt</span><span class="p">:</span> <span class="n">dt</span><span class="o">.</span><span class="n">year</span>
+    <span class="n">Months</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">dt</span><span class="p">:</span> <span class="n">Interval</span><span class="o">.</span><span class="n">Years</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span> <span class="o">*</span> <span class="mi">12</span> <span class="o">+</span> <span class="n">dt</span><span class="o">.</span><span class="n">month</span>
+    <span class="n">Days</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">dt</span><span class="p">:</span> <span class="n">Interval</span><span class="o">.</span><span class="n">Months</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span> <span class="o">*</span> <span class="mi">31</span> <span class="o">+</span> <span class="n">dt</span><span class="o">.</span><span class="n">day</span>
+    <span class="n">Hours</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">dt</span><span class="p">:</span> <span class="n">Interval</span><span class="o">.</span><span class="n">Days</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span> <span class="o">*</span> <span class="mi">24</span> <span class="o">+</span> <span class="n">dt</span><span class="o">.</span><span class="n">hour</span>
+    <span class="n">Minutes</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">dt</span><span class="p">:</span> <span class="n">Interval</span><span class="o">.</span><span class="n">Hours</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">+</span> <span class="n">dt</span><span class="o">.</span><span class="n">month</span>
+    <span class="n">Seconds</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">dt</span><span class="p">:</span> <span class="n">Interval</span><span class="o">.</span><span class="n">Minutes</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">+</span> <span class="n">dt</span><span class="o">.</span><span class="n">month</span>
+
+
+<div class="viewcode-block" id="Market"><a class="viewcode-back" href="../../market/structure.html#markets.models.Market">[docs]</a><span class="k">class</span> <span class="nc">Market</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">255</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s">&#39;MarketName&#39;</span><span class="p">)</span>
+    <span class="n">description</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">255</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s">&#39;Add a description here. &#39;</span><span class="p">)</span>
+
+    <span class="n">pub_date</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">DateTimeField</span><span class="p">(</span><span class="s">&#39;Date Published&#39;</span><span class="p">)</span>
+
+    <span class="nb">type</span> <span class="o">=</span> <span class="n">EnumIntegerField</span><span class="p">(</span><span class="n">MarketType</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">MarketType</span><span class="o">.</span><span class="n">msr_maker</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">challenge_end</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_active</span><span class="p">():</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">active_set</span><span class="p">()</span><span class="o">.</span><span class="n">challenge_end</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">challenge_end_ticks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">end</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">challenge_end</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">end</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">mktime</span><span class="p">(</span><span class="n">end</span><span class="o">.</span><span class="n">timetuple</span><span class="p">())</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">challenge_start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_active</span><span class="p">():</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">active_set</span><span class="p">()</span><span class="o">.</span><span class="n">challenge_start</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+
+<div class="viewcode-block" id="Market.active_set"><a class="viewcode-back" href="../../market/structure.html#markets.models.Market.active_set">[docs]</a>    <span class="k">def</span> <span class="nf">active_set</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Gets the active dataset for this market, or None if the market is inactive. &quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_set</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">market</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_active</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">ObjectDoesNotExist</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+        <span class="k">except</span> <span class="n">MultipleObjectsReturned</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;Too many active datasets! Invalid state?.. &quot;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Market.n_events"><a class="viewcode-back" href="../../market/structure.html#markets.models.Market.n_events">[docs]</a>    <span class="k">def</span> <span class="nf">n_events</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Gets the total amount of events registered with this market. &quot;</span>
+        <span class="k">return</span> <span class="n">Event</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">market</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Market.n_datasets"><a class="viewcode-back" href="../../market/structure.html#markets.models.Market.n_datasets">[docs]</a>    <span class="k">def</span> <span class="nf">n_datasets</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Gets the total number of datasets for this market. &quot;</span>
+        <span class="k">return</span> <span class="n">DataSet</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">market</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Market.primary_account"><a class="viewcode-back" href="../../market/structure.html#markets.models.Market.primary_account">[docs]</a>    <span class="k">def</span> <span class="nf">primary_account</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">u</span><span class="p">):</span>
+        <span class="s">&quot;Returns the user&#39;s primary account for this market, or None if they are not registered. &quot;</span>
+        <span class="k">if</span> <span class="n">u</span><span class="o">.</span><span class="n">is_anonymous</span><span class="p">():</span>
+            <span class="k">return</span> <span class="bp">None</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">u</span><span class="o">.</span><span class="n">account_set</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">market</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_primary</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">Account</span><span class="o">.</span><span class="n">DoesNotExist</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+        <span class="k">except</span> <span class="n">MultipleObjectsReturned</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;Too many accounts for this user! Invalid state?.. &quot;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Market.create_primary_account"><a class="viewcode-back" href="../../market/structure.html#markets.models.Market.create_primary_account">[docs]</a>    <span class="k">def</span> <span class="nf">create_primary_account</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">u</span><span class="p">):</span>
+        <span class="s">&quot;Creates a primary account for the given user. Throws an exception if the account exists. &quot;</span>
+        <span class="k">assert</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">primary_account</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">Account</span><span class="p">(</span><span class="n">user</span><span class="o">=</span><span class="n">u</span><span class="p">,</span> <span class="n">market</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_primary</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">funds</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+        <span class="n">a</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">a</span>
+</div>
+<div class="viewcode-block" id="Market.api_accounts"><a class="viewcode-back" href="../../market/structure.html#markets.models.Market.api_accounts">[docs]</a>    <span class="k">def</span> <span class="nf">api_accounts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">u</span><span class="p">):</span>
+        <span class="s">&quot;Gets all API accounts created by the given user for this market. &quot;</span>
+        <span class="k">return</span> <span class="n">u</span><span class="o">.</span><span class="n">account_set</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">is_primary</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Market.is_active"><a class="viewcode-back" href="../../market/structure.html#markets.models.Market.is_active">[docs]</a>    <span class="k">def</span> <span class="nf">is_active</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Gets whether this market has an active dataset. &quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">active_set</span><span class="p">()</span> <span class="o">!=</span> <span class="bp">None</span></div>
+    <span class="n">is_active</span><span class="o">.</span><span class="n">boolean</span> <span class="o">=</span> <span class="bp">True</span>    <span class="c"># show it as an icon in the admin panel</span>
+
+
+<div class="viewcode-block" id="Market.parse_bid"><a class="viewcode-back" href="../../market/structure.html#markets.models.Market.parse_bid">[docs]</a>    <span class="k">def</span> <span class="nf">parse_bid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">post</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parses the data from the given POST request. </span>
+<span class="sd">        Returns a list of tuples containing the amount wagered on each outcome for this market. </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">outcomes</span> <span class="o">=</span> <span class="n">Outcome</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">event__market</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="nb">ord</span> <span class="ow">in</span> <span class="n">outcomes</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">ord_pos</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">post</span><span class="p">[</span><span class="s">&quot;pos_</span><span class="si">%i</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">ord</span><span class="o">.</span><span class="n">id</span><span class="p">)])</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="n">ord_pos</span> <span class="o">=</span> <span class="mi">0</span>
+
+            <span class="k">if</span> <span class="n">ord_pos</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">pos</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="nb">ord</span><span class="p">,</span> <span class="n">ord_pos</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">pos</span>
+</div>
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">description</span>
+
+    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c"># Sets the pub_date field the first time the object is saved</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pub_date</span> <span class="o">==</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pub_date</span> <span class="o">=</span> <span class="n">timezone</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Market</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+
+</div>
+<div class="viewcode-block" id="Account"><a class="viewcode-back" href="../../market/structure.html#markets.models.Account">[docs]</a><span class="k">class</span> <span class="nc">Account</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Represents a user&#39;s bank account for a given market. </span>
+<span class="sd">    Normal users are allowed only a primary account </span>
+<span class="sd">    while admin users can create multiple secondary accounts. </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">user</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="n">User</span><span class="p">)</span>
+    
+    <span class="n">market</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="n">Market</span><span class="p">)</span>
+    
+    <span class="n">funds</span> <span class="o">=</span> <span class="n">CurrencyField</span><span class="p">()</span>
+
+    <span class="n">is_primary</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">BooleanField</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+    
+    <span class="k">def</span> <span class="nf">all_orders</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">order_set</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+
+
+    <span class="nd">@transaction.atomic</span>
+<div class="viewcode-block" id="Account.place_order"><a class="viewcode-back" href="../../market/structure.html#markets.models.Account.place_order">[docs]</a>    <span class="k">def</span> <span class="nf">place_order</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">market</span><span class="p">,</span> <span class="n">position</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Tries to place an order from this account on the given market with the given positions. </span>
+<span class="sd">        Each position is a tuple of an outcome, and the amount to wager on that outcome. </span>
+
+<span class="sd">        Returns None if the position list is empty. </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">position</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">order</span> <span class="o">=</span> <span class="n">Order</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">market</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">position</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;failed creating an order: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+
+        <span class="k">assert</span> <span class="p">(</span><span class="ow">not</span> <span class="n">order</span><span class="o">.</span><span class="n">is_processed</span><span class="p">())</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="ow">not</span> <span class="n">order</span><span class="o">.</span><span class="n">is_successful</span><span class="p">)</span>
+
+        <span class="c"># sends the order_placed signal. </span>
+        <span class="n">order_placed</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">sender</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">order</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">order</span>
+</div></div>
+<div class="viewcode-block" id="Event"><a class="viewcode-back" href="../../market/structure.html#markets.models.Event">[docs]</a><span class="k">class</span> <span class="nc">Event</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+    <span class="s">&quot;A set of outcomes for a market. &quot;</span>
+    <span class="n">description</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">255</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s">&#39;Some outcome set&#39;</span><span class="p">)</span>
+    <span class="n">market</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="n">Market</span><span class="p">,</span> <span class="n">related_name</span><span class="o">=</span><span class="s">&quot;events&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Event.normalise_outcomes"><a class="viewcode-back" href="../../market/structure.html#markets.models.Event.normalise_outcomes">[docs]</a>    <span class="k">def</span> <span class="nf">normalise_outcomes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Makes sure all outcomes sum to 1&quot;</span>
+        <span class="c"># get the outcomes from the market</span>
+        <span class="n">outcomes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outcomes</span><span class="o">.</span><span class="n">all</span><span class="p">())</span>
+        
+        <span class="n">pdf_invalid</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outcomes</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">current_price</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">pdf_invalid</span><span class="p">:</span>
+            <span class="n">n_outcomes</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">outcomes</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outcomes</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+                <span class="n">o</span><span class="o">.</span><span class="n">current_price</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">n_outcomes</span>
+                <span class="n">o</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">pdf_total</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">current_price</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">outcomes</span><span class="p">)</span>
+            <span class="n">pdf_left</span> <span class="o">=</span> <span class="n">Decimal</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>   <span class="c"># make sure we never distribute more than 1</span>
+            <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">outcomes</span><span class="p">:</span>
+                <span class="n">new_price</span> <span class="o">=</span> <span class="n">o</span><span class="o">.</span><span class="n">current_price</span> <span class="o">/</span> <span class="n">pdf_total</span>
+                <span class="n">o</span><span class="o">.</span><span class="n">current_price</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">pdf_left</span><span class="p">,</span> <span class="n">new_price</span><span class="p">)</span>
+                <span class="n">pdf_left</span> <span class="o">-=</span> <span class="n">o</span><span class="o">.</span><span class="n">current_price</span>
+                <span class="c"># still possible to get a 0 here</span>
+                <span class="n">o</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Event.random_outcome"><a class="viewcode-back" href="../../market/structure.html#markets.models.Event.random_outcome">[docs]</a>    <span class="k">def</span> <span class="nf">random_outcome</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Draws a random outcome from this set. &quot;</span>
+        <span class="n">outcomes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outcomes</span><span class="o">.</span><span class="n">all</span><span class="p">())</span>
+        <span class="n">n_outcomes</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">outcomes</span><span class="p">)</span>
+        <span class="n">random_outcome_id</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">n_outcomes</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>   <span class="c"># range is inclusive at both ends</span>
+        <span class="k">return</span> <span class="n">outcomes</span><span class="p">[</span><span class="n">random_outcome_id</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="Event.price_histogram"><a class="viewcode-back" href="../../market/structure.html#markets.models.Event.price_histogram">[docs]</a>    <span class="k">def</span> <span class="nf">price_histogram</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt_from</span><span class="p">,</span> <span class="n">dt_to</span><span class="p">):</span>
+        <span class="s">&quot;Gets the price histogram for the event in the given time interval. &quot;&quot;&quot;</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">dt_from</span> <span class="o">-</span> <span class="n">dt_to</span>
+        <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="Event.activity_histogram"><a class="viewcode-back" href="../../market/structure.html#markets.models.Event.activity_histogram">[docs]</a>    <span class="k">def</span> <span class="nf">activity_histogram</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt_from</span><span class="p">,</span> <span class="n">dt_to</span><span class="p">,</span> <span class="n">interval</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets the amount of trades that occured in the given time interval.&quot;&quot;&quot;</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">dt_from</span> <span class="o">-</span> <span class="n">dt_to</span>
+        <span class="c"># get the list of positions in the given interval</span>
+        <span class="n">trades</span> <span class="o">=</span> <span class="n">Position</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">outcome__event</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">trades</span> <span class="o">=</span> <span class="n">trades</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">order__timestamp__gte</span><span class="o">=</span><span class="n">dt_from</span><span class="p">)</span>
+        <span class="n">trades</span> <span class="o">=</span> <span class="n">trades</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">order__timestamp__lte</span> <span class="o">=</span> <span class="n">dt_to</span><span class="p">)</span>
+        <span class="n">trades</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">trades</span><span class="p">)</span>
+        <span class="n">trades</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="n">p</span><span class="o">.</span><span class="n">order</span><span class="o">.</span><span class="n">timestamp</span><span class="p">)</span>
+
+        <span class="k">print</span><span class="p">(</span><span class="s">&quot;KUR: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">trades</span><span class="p">))</span>
+
+        <span class="n">first_bin</span> <span class="o">=</span> <span class="n">interval</span><span class="p">(</span><span class="n">dt_from</span><span class="p">)</span>
+        <span class="n">last_bin</span> <span class="o">=</span> <span class="n">interval</span><span class="p">(</span><span class="n">dt_to</span><span class="p">)</span>
+        <span class="n">n_bins</span> <span class="o">=</span> <span class="n">last_bin</span> <span class="o">-</span> <span class="n">first_bin</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">bins</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">bin_id</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">first_bin</span><span class="p">,</span> <span class="n">last_bin</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">counts</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">trades</span><span class="p">)</span> <span class="ow">and</span> <span class="n">interval</span><span class="p">(</span><span class="n">trades</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">order</span><span class="o">.</span><span class="n">timestamp</span><span class="p">)</span> <span class="o">==</span> <span class="n">bin_id</span><span class="p">:</span>
+                <span class="n">counts</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">bins</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">counts</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">bins</span>
+</div>
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s"> (</span><span class="si">%s</span><span class="s">)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">market</span><span class="p">)</span>
+
+<span class="c"># represents a single outcome in a multiclass market. </span></div>
+<div class="viewcode-block" id="Outcome"><a class="viewcode-back" href="../../market/structure.html#markets.models.Outcome">[docs]</a><span class="k">class</span> <span class="nc">Outcome</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+    <span class="n">event</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="n">Event</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">related_name</span><span class="o">=</span><span class="s">&#39;outcomes&#39;</span><span class="p">)</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">255</span><span class="p">)</span>
+
+    <span class="c"># TODO: remove</span>
+    <span class="n">current_price</span> <span class="o">=</span> <span class="n">CurrencyField</span><span class="p">()</span>
+
+    <span class="n">sell_offer</span> <span class="o">=</span> <span class="n">CurrencyField</span><span class="p">()</span>
+    <span class="n">buy_offer</span> <span class="o">=</span> <span class="n">CurrencyField</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s">&quot; : &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_price</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="DataSet"><a class="viewcode-back" href="../../market/structure.html#markets.models.DataSet">[docs]</a><span class="k">class</span> <span class="nc">DataSet</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+    <span class="c"># the market this dataset is for</span>
+    <span class="n">market</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="n">Market</span><span class="p">)</span>
+
+    <span class="n">description</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">255</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s">&#39;Add a description here. &#39;</span><span class="p">)</span>
+
+    <span class="c"># whether the dataset is intended for training</span>
+    <span class="c"># currently unused in code</span>
+    <span class="n">is_training</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">BooleanField</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+
+    <span class="c"># whether the data set is active for the given market</span>
+    <span class="n">is_active</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">BooleanField</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+
+    <span class="c"># the count of datums</span>
+    <span class="c"># should not be set manually</span>
+    <span class="n">datum_count</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">IntegerField</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="c"># the id of the active datum</span>
+    <span class="n">active_datum_id</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">IntegerField</span><span class="p">(</span><span class="s">&#39;Active challenge id&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="c"># time when the active datum was revealed</span>
+    <span class="n">challenge_start</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">DateTimeField</span><span class="p">(</span><span class="s">&#39;Challenge started&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="mi">2014</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">))</span>
+    
+    <span class="c"># interval between consecutive challenges in days</span>
+    <span class="n">reveal_interval</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">FloatField</span><span class="p">(</span><span class="s">&#39;Interval between challenges&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">7</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="DataSet.get_datum"><a class="viewcode-back" href="../../market/structure.html#markets.models.DataSet.get_datum">[docs]</a>    <span class="k">def</span> <span class="nf">get_datum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">set_id</span><span class="p">):</span>
+        <span class="s">&quot;Gets the datum with the specified set_id. Throws an exception if it does not exist. &quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">datum_set</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">set_id</span><span class="o">=</span><span class="n">set_id</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="DataSet.next_id"><a class="viewcode-back" href="../../market/structure.html#markets.models.DataSet.next_id">[docs]</a>    <span class="k">def</span> <span class="nf">next_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieves an id for the next datum and advances self.datum_count. </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datum_count</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">datum_count</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+        <span class="k">return</span> <span class="nb">id</span>
+</div>
+<div class="viewcode-block" id="DataSet.next_challenge_in"><a class="viewcode-back" href="../../market/structure.html#markets.models.DataSet.next_challenge_in">[docs]</a>    <span class="k">def</span> <span class="nf">next_challenge_in</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Gets the time remaining until this challenge ends. &quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">challenge_end</span><span class="p">()</span> <span class="o">-</span> <span class="n">timezone</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="DataSet.challenge_duration"><a class="viewcode-back" href="../../market/structure.html#markets.models.DataSet.challenge_duration">[docs]</a>    <span class="k">def</span> <span class="nf">challenge_duration</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Gets a timedelate representation of the duration of a challenge. &quot;</span>
+        <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">reveal_interval</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="DataSet.challenge_end"><a class="viewcode-back" href="../../market/structure.html#markets.models.DataSet.challenge_end">[docs]</a>    <span class="k">def</span> <span class="nf">challenge_end</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Gets the datetime the active challenge ends at. &quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">challenge_start</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">challenge_duration</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="DataSet.challenge_expired"><a class="viewcode-back" href="../../market/structure.html#markets.models.DataSet.challenge_expired">[docs]</a>    <span class="k">def</span> <span class="nf">challenge_expired</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets whether this set&#39;s current challenge has expired. &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">challenge_end</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">timezone</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="DataSet.has_data"><a class="viewcode-back" href="../../market/structure.html#markets.models.DataSet.has_data">[docs]</a>    <span class="k">def</span> <span class="nf">has_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Gets whether this dataset has any datums. &quot;</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">datum_set</span><span class="o">.</span><span class="n">count</span><span class="p">()</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">datum_count</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">datum_count</span> <span class="o">&gt;=</span> <span class="mi">0</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">datum_count</span> <span class="o">&gt;</span> <span class="mi">0</span>
+</div>
+<div class="viewcode-block" id="DataSet.has_datum"><a class="viewcode-back" href="../../market/structure.html#markets.models.DataSet.has_datum">[docs]</a>    <span class="k">def</span> <span class="nf">has_datum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">id</span><span class="p">):</span>
+        <span class="s">&quot;Gets whether this DataSet contains a datum with the given id. &quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_datum</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">ObjectDoesNotExist</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="p">(</span><span class="nb">id</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datum_count</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">False</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="nb">id</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">datum_count</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">True</span>
+</div>
+<div class="viewcode-block" id="DataSet.active_datum"><a class="viewcode-back" href="../../market/structure.html#markets.models.DataSet.active_datum">[docs]</a>    <span class="k">def</span> <span class="nf">active_datum</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Gets the active datum. Throws an exception if it does not exist. &quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_datum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">active_datum_id</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="DataSet.get_outcomes"><a class="viewcode-back" href="../../market/structure.html#markets.models.DataSet.get_outcomes">[docs]</a>    <span class="k">def</span> <span class="nf">get_outcomes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Gets all outcomes from the market. &quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">market</span><span class="o">.</span><span class="n">outcomes</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+</div>
+    <span class="nd">@transaction.atomic</span>
+<div class="viewcode-block" id="DataSet.start"><a class="viewcode-back" href="../../market/structure.html#markets.models.DataSet.start">[docs]</a>    <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Sets this DataSet as the active set for its market.&quot;</span>
+        <span class="c"># if there&#39;s another active dataset it is made inactive</span>
+        <span class="n">ds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">market</span><span class="o">.</span><span class="n">active_set</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">ds</span> <span class="o">==</span> <span class="bp">self</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_data</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;Unable to start a set with no datums. &quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">ds</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">ds</span><span class="o">.</span><span class="n">is_active</span> <span class="o">=</span> <span class="bp">False</span>
+            <span class="n">ds</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_active</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">challenge_start</span> <span class="o">=</span> <span class="n">timezone</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+</div>
+    <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_active</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+
+<div class="viewcode-block" id="DataSet.set_challenge"><a class="viewcode-back" href="../../market/structure.html#markets.models.DataSet.set_challenge">[docs]</a>    <span class="k">def</span> <span class="nf">set_challenge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+        <span class="s">&quot;Sets the next challenge. &quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_datum</span><span class="p">(</span><span class="n">i</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;No challenge with id </span><span class="si">%d</span><span class="s"> for set </span><span class="si">%s</span><span class="s">!&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="bp">self</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">active_datum_id</span> <span class="o">=</span> <span class="n">i</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">challenge_start</span> <span class="o">=</span> <span class="n">timezone</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+
+</div>
+<div class="viewcode-block" id="DataSet.reset"><a class="viewcode-back" href="../../market/structure.html#markets.models.DataSet.reset">[docs]</a>    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Resets active_datum_id to 0. If there is no datum with id of 0, an exception is thrown. &quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_data</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;Unable to reset a set with no data! &quot;</span><span class="p">)</span>
+
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_datum</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">active_datum_id</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">challenge_start</span> <span class="o">=</span> <span class="n">timezone</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="DataSet.next_challenge_id"><a class="viewcode-back" href="../../market/structure.html#markets.models.DataSet.next_challenge_id">[docs]</a>    <span class="k">def</span> <span class="nf">next_challenge_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Gets the id of the next challenge (datum). </span>
+<span class="sd">        Throws an exception if there is no such datum. </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">new_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">active_datum_id</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_datum</span><span class="p">(</span><span class="n">new_id</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;No next challenge!&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">new_id</span>
+
+
+</div>
+<div class="viewcode-block" id="DataSet.next"><a class="viewcode-back" href="../../market/structure.html#markets.models.DataSet.next">[docs]</a>    <span class="k">def</span> <span class="nf">next</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Advances this active set to the next datum (challenge) _once_, and raises the dataset_expired signal.</span>
+<span class="sd">        If there is no datum with such id, the set is made inactive. </span>
+<span class="sd">        Returns whether the set is active. </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_active</span>
+
+        <span class="k">print</span><span class="p">(</span><span class="s">&quot;try advance set </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="p">)</span>
+
+        <span class="c"># Continue only if there is data in the set</span>
+        <span class="c"># should not typically arrive here</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_data</span><span class="p">():</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Abruptly ended empty dataset </span><span class="si">%s</span><span class="s"> (no challenges whatsoever). &quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">active_datum_id</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="p">)))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+            <span class="k">return</span>
+        
+
+        <span class="c"># get the current challenge</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">old_datum</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">active_datum</span><span class="p">()</span>
+        <span class="k">except</span> <span class="n">ObjectDoesNotExist</span><span class="p">:</span>  <span class="c"># log an error and deactive the set</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s">&quot;Unable to find the active data point with id: </span><span class="si">%d</span><span class="s">. Stopping the set. &quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">active_datum_id</span><span class="p">))</span>
+            <span class="k">return</span>
+        <span class="k">except</span> <span class="n">MultipleObjectsReturned</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;Too many points with id: </span><span class="si">%d</span><span class="s">! Invalid state?.. &quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+        
+        <span class="c"># see if we actually need to advance to the next challenge. </span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">challenge_expired</span><span class="p">():</span>
+            <span class="k">return</span>
+
+        <span class="c"># raise the dataset_expired signal</span>
+        <span class="n">dataset_expired</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span> <span class="n">datum</span><span class="o">=</span><span class="n">old_datum</span><span class="p">)</span>
+
+        <span class="c"># grab the next challenge (datum)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">active_datum_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">next_challenge_id</span><span class="p">()</span>
+        <span class="k">except</span><span class="p">:</span> <span class="c"># make it inactive if no next datum (this was the last)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">is_active</span> <span class="o">=</span> <span class="bp">False</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Ended challenge #</span><span class="si">%d</span><span class="s"> for dataset </span><span class="si">%s</span><span class="s"> (no next challenge). &quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">active_datum_id</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="p">)))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+            <span class="k">return</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">challenge_start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">challenge_end</span><span class="p">()</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">challenge_duration</span><span class="p">()</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Started next challenge #</span><span class="si">%d</span><span class="s"> for dataset </span><span class="si">%s</span><span class="s">. Ends at </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">active_datum_id</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">challenge_end</span><span class="p">()))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_active</span>
+
+</div>
+<div class="viewcode-block" id="DataSet.random"><a class="viewcode-back" href="../../market/structure.html#markets.models.DataSet.random">[docs]</a>    <span class="k">def</span> <span class="nf">random</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_datums</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generates some random datums for this dataset. </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">n_datums</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;n_datums must be positive!&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_datums</span><span class="p">):</span>
+            <span class="n">dat</span> <span class="o">=</span> <span class="n">Datum</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+
+    <span class="c"># creates a new dataset from a file</span>
+    <span class="c"># TODO: add schema as param?</span></div>
+    <span class="k">def</span> <span class="nf">from_file</span><span class="p">(</span><span class="n">market</span><span class="p">,</span> <span class="nb">file</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&quot;dataset #</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">dataset_change</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span> <span class="nb">set</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Datum"><a class="viewcode-back" href="../../market/structure.html#markets.models.Datum">[docs]</a><span class="k">class</span> <span class="nc">Datum</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+    <span class="c"># the set this data point is part of</span>
+    <span class="n">data_set</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="n">DataSet</span><span class="p">)</span>
+    <span class="c"># the test data</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">1024</span><span class="p">)</span>
+
+    <span class="c"># the consecutive id of the datum in the set</span>
+    <span class="n">set_id</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">IntegerField</span><span class="p">()</span>
+
+<div class="viewcode-block" id="Datum.random"><a class="viewcode-back" href="../../market/structure.html#markets.models.Datum.random">[docs]</a>    <span class="k">def</span> <span class="nf">random</span><span class="p">(</span><span class="nb">set</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="s">&quot;&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates a new datum with random results </span>
+<span class="sd">        for this DataSet&#39;s outcomes and saves it</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="nb">id</span> <span class="o">=</span> <span class="nb">set</span><span class="o">.</span><span class="n">next_id</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">x</span><span class="p">:</span> <span class="c"># generate a placeholder name</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">set</span><span class="o">.</span><span class="n">description</span><span class="p">,</span> <span class="nb">id</span><span class="p">)</span>
+
+        <span class="n">dat</span> <span class="o">=</span> <span class="n">Datum</span><span class="p">(</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="p">,</span>
+            <span class="n">set_id</span> <span class="o">=</span> <span class="nb">id</span><span class="p">,</span>
+            <span class="n">data_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">)</span>
+        <span class="n">dat</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+
+        <span class="c"># generate random outcomes for each event</span>
+        <span class="n">es</span> <span class="o">=</span> <span class="nb">set</span><span class="o">.</span><span class="n">market</span><span class="o">.</span><span class="n">events</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">es</span><span class="p">:</span>
+            <span class="n">o</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">random_outcome</span><span class="p">()</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">Result</span><span class="p">(</span>
+                <span class="n">datum</span><span class="o">=</span><span class="n">dat</span><span class="p">,</span>
+                <span class="n">outcome</span><span class="o">=</span><span class="n">o</span><span class="p">)</span>
+            <span class="n">r</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+</div>
+    <span class="k">def</span> <span class="nf">new</span><span class="p">(</span><span class="nb">set</span><span class="p">,</span> <span class="n">results</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+<div class="viewcode-block" id="Datum.is_valid"><a class="viewcode-back" href="../../market/structure.html#markets.models.Datum.is_valid">[docs]</a>    <span class="k">def</span> <span class="nf">is_valid</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Checks whether this datum contains results for all market events. &quot;</span>
+        <span class="n">market</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span><span class="o">.</span><span class="n">market</span>
+        <span class="n">mkt_events</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">market</span><span class="o">.</span><span class="n">events</span><span class="o">.</span><span class="n">all</span><span class="p">())</span>
+        <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">result_set</span><span class="o">.</span><span class="n">select_related</span><span class="p">(</span><span class="s">&#39;outcome__event&#39;</span><span class="p">):</span>
+            <span class="n">ev</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">outcome</span><span class="o">.</span><span class="n">event</span>
+            <span class="k">if</span> <span class="n">ev</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">mkt_events</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">False</span>
+        <span class="k">return</span> <span class="bp">True</span>
+
+</div>
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">&#39;</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_set</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">set_id</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Result"><a class="viewcode-back" href="../../market/structure.html#markets.models.Result">[docs]</a><span class="k">class</span> <span class="nc">Result</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+    <span class="s">&quot;The actual outcome of a given event for the specified datum. &quot;</span>
+    <span class="n">datum</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="n">Datum</span><span class="p">)</span>
+    <span class="n">outcome</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="n">Outcome</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&quot;(</span><span class="si">%s</span><span class="s">) wins </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outcome</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">datum</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Order"><a class="viewcode-back" href="../../market/structure.html#markets.models.Order">[docs]</a><span class="k">class</span> <span class="nc">Order</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A pending or already processed order from a user for some market&quot;&quot;&quot;</span>
+
+    <span class="c"># the account that made the order</span>
+    <span class="n">account</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="n">Account</span><span class="p">)</span>
+    <span class="c"># for which dataset entry (datum) was the bet made</span>
+    <span class="n">datum</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="n">Datum</span><span class="p">)</span>
+    <span class="c"># when was the order made</span>
+    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">DateTimeField</span><span class="p">(</span><span class="s">&#39;Time created&#39;</span><span class="p">)</span>
+
+    <span class="c"># whether the order was completed successfully</span>
+    <span class="n">is_successful</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">BooleanField</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Order.set_processed"><a class="viewcode-back" href="../../market/structure.html#markets.models.Order.set_processed">[docs]</a>    <span class="k">def</span> <span class="nf">set_processed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Marks all positions in this order as processed. &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">position_set</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+            <span class="n">o</span><span class="o">.</span><span class="n">is_processed</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="n">o</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Order.is_processed"><a class="viewcode-back" href="../../market/structure.html#markets.models.Order.is_processed">[docs]</a>    <span class="k">def</span> <span class="nf">is_processed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns whether all positions in this order are processed. &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">position_set</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">is_processed</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Order.unprocessed_orders"><a class="viewcode-back" href="../../market/structure.html#markets.models.Order.unprocessed_orders">[docs]</a>    <span class="k">def</span> <span class="nf">unprocessed_orders</span><span class="p">():</span>
+        <span class="s">&quot;Retrieves all unprocessed orders from the database. &quot;</span>
+        <span class="k">return</span> <span class="n">Order</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">position__is_processed</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Order.get_position"><a class="viewcode-back" href="../../market/structure.html#markets.models.Order.get_position">[docs]</a>    <span class="k">def</span> <span class="nf">get_position</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outcome</span><span class="p">):</span>
+        <span class="s">&quot;Gets this order&#39;s position for the specified outcome. &quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">position_set</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">outcome</span><span class="o">=</span><span class="n">outcome</span><span class="p">)</span><span class="o">.</span><span class="n">amount</span>
+        <span class="k">except</span> <span class="n">ObjectDoesNotExist</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">0</span>
+        <span class="k">except</span> <span class="n">MultipleObjectsReturned</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;Too many positions for order </span><span class="si">%d</span><span class="s">! Invalid state?.. &quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+        
+    <span class="c"># Gets the order along with a list of the order&#39;s positions</span>
+    <span class="c"># for all selected outcomes. </span></div>
+    <span class="k">def</span> <span class="nf">get_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outcomes</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">get_position</span><span class="p">(</span><span class="n">out</span><span class="p">)</span> <span class="k">for</span> <span class="n">out</span> <span class="ow">in</span> <span class="n">outcomes</span><span class="p">])</span>
+
+<div class="viewcode-block" id="Order.group_by_event"><a class="viewcode-back" href="../../market/structure.html#markets.models.Order.group_by_event">[docs]</a>    <span class="k">def</span> <span class="nf">group_by_event</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Groups all positions in this order by their event.</span>
+<span class="sd">        Returns a dictionary of the events with the list of positions on them as the value. </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">all_ps</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">position_set</span><span class="o">.</span><span class="n">all</span><span class="p">())</span>
+
+        <span class="n">get_ev_id</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="n">p</span><span class="o">.</span><span class="n">outcome</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">id</span>
+        <span class="n">all_ps</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">get_ev_id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[(</span><span class="n">ev</span><span class="p">,</span><span class="nb">list</span><span class="p">(</span><span class="n">ps</span><span class="p">))</span> <span class="k">for</span> <span class="p">(</span><span class="n">ev</span><span class="p">,</span><span class="n">ps</span><span class="p">)</span> <span class="ow">in</span> <span class="n">groupby</span><span class="p">(</span><span class="n">all_ps</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="n">p</span><span class="o">.</span><span class="n">outcome</span><span class="o">.</span><span class="n">event</span><span class="p">)]</span>
+
+
+    <span class="c"># creates a new order for the given account playing on the given market. </span></div>
+    <span class="nd">@transaction.atomic</span>
+    <span class="k">def</span> <span class="nf">new_single</span><span class="p">(</span><span class="n">market</span><span class="p">,</span> <span class="n">account</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">amount</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Order</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">market</span><span class="p">,</span> <span class="n">account</span><span class="p">,</span> <span class="p">[(</span><span class="n">outcome</span><span class="p">,</span><span class="n">amount</span><span class="p">)])</span> 
+
+    <span class="nd">@transaction.atomic</span>
+<div class="viewcode-block" id="Order.new"><a class="viewcode-back" href="../../market/structure.html#markets.models.Order.new">[docs]</a>    <span class="k">def</span> <span class="nf">new</span><span class="p">(</span><span class="n">market</span><span class="p">,</span> <span class="n">account</span><span class="p">,</span> <span class="n">positions</span><span class="p">):</span>
+        <span class="s">&quot;Creates a new multi-position order on the given market by the given account. &quot;</span>
+
+        <span class="c"># get this market&#39;s active challenge</span>
+        <span class="n">dataset</span> <span class="o">=</span> <span class="n">market</span><span class="o">.</span><span class="n">active_set</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">dataset</span><span class="p">:</span>
+            <span class="c"># non-active markets should not be listed</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;No active dataset for this market!&quot;</span><span class="p">)</span>
+
+        <span class="n">datum</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">active_datum</span><span class="p">()</span>
+        <span class="c"># create the order</span>
+        <span class="n">order</span> <span class="o">=</span> <span class="n">Order</span><span class="p">(</span>
+            <span class="n">datum</span> <span class="o">=</span> <span class="n">datum</span><span class="p">,</span>
+            <span class="n">account</span><span class="o">=</span><span class="n">account</span><span class="p">,</span>
+            <span class="n">timestamp</span> <span class="o">=</span> <span class="n">timezone</span><span class="o">.</span><span class="n">now</span><span class="p">())</span>
+        <span class="n">order</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+
+        <span class="c"># and its position</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">amount</span><span class="p">)</span> <span class="ow">in</span> <span class="n">positions</span><span class="p">:</span>
+            <span class="n">pos</span> <span class="o">=</span> <span class="n">Position</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">order</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">amount</span><span class="p">)</span>
+            <span class="n">pos</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">order</span>
+</div>
+    <span class="k">def</span> <span class="nf">market</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">account</span><span class="o">.</span><span class="n">market</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">datum</span><span class="o">.</span><span class="n">data_set</span><span class="o">.</span><span class="n">market</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">account</span><span class="o">.</span><span class="n">market</span>
+
+    <span class="nd">@transaction.atomic</span>
+    <span class="k">def</span> <span class="nf">cancel</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_processed</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_successful</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+    
+<span class="c"># represents a position on a given outcome</span>
+<span class="c"># in the context of an order. </span></div>
+<div class="viewcode-block" id="Position"><a class="viewcode-back" href="../../market/structure.html#markets.models.Position">[docs]</a><span class="k">class</span> <span class="nc">Position</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+    <span class="s">&quot;A player&#39;s position (opinion) about a given outcome as part of an order. &quot;</span>
+    <span class="c"># the order this position</span>
+    <span class="n">order</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="n">Order</span><span class="p">)</span>
+    <span class="c"># what the claim was</span>
+    <span class="n">outcome</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="n">Outcome</span><span class="p">)</span>
+    <span class="c"># how much contracts to trade</span>
+    <span class="n">amount</span> <span class="o">=</span> <span class="n">CurrencyField</span><span class="p">()</span>
+
+    <span class="c"># whether the position is processed</span>
+    <span class="n">is_processed</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">BooleanField</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+
+    <span class="c"># The price per contract for this position. </span>
+    <span class="c"># Either set by the market maker when it processes the order</span>
+    <span class="c"># Or set by the account holder when using an Order Book</span>
+    <span class="n">contract_price</span> <span class="o">=</span> <span class="n">CurrencyField</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">new</span><span class="p">(</span><span class="n">order</span><span class="p">,</span> <span class="n">outcome</span><span class="p">,</span> <span class="n">amount</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Position</span><span class="p">(</span>
+            <span class="n">order</span><span class="o">=</span><span class="n">order</span><span class="p">,</span>
+            <span class="n">outcome</span><span class="o">=</span><span class="n">outcome</span><span class="p">,</span>
+            <span class="n">amount</span><span class="o">=</span><span class="n">amount</span><span class="p">)</span>
+    
+    <span class="c"># gets the total cost for this position. </span>
+    <span class="k">def</span> <span class="nf">get_cost</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">amount</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">price</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&quot;</span><span class="si">%d</span><span class="s"> tokens for </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">amount</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">outcome</span><span class="p">)</span>
+
+<span class="c"># contains uploaded documents to be used as dataset sources. </span></div>
+<div class="viewcode-block" id="Document"><a class="viewcode-back" href="../../market/structure.html#markets.models.Document">[docs]</a><span class="k">class</span> <span class="nc">Document</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+    <span class="s">&quot;A document uploaded by the user to be potentially used as a dataset source. &quot;</span>
+    <span class="n">user</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="n">User</span><span class="p">)</span>
+    <span class="nb">file</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">FileField</span><span class="p">(</span><span class="n">upload_to</span><span class="o">=</span><span class="s">&#39;uploads&#39;</span><span class="p">)</span>
+    
+    <span class="k">def</span> <span class="nf">fileName</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="c"># removes non-existant files</span>
+    <span class="k">def</span> <span class="nf">clean_db_records</span><span class="p">(</span><span class="n">u</span><span class="p">):</span>
+        <span class="n">docs</span> <span class="o">=</span> <span class="n">Document</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">user</span><span class="o">=</span><span class="n">u</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">docs</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">d</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="n">d</span><span class="o">.</span><span class="n">delete</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fileName</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="AccountBalance"><a class="viewcode-back" href="../../market/structure.html#markets.models.AccountBalance">[docs]</a><span class="k">class</span> <span class="nc">AccountBalance</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Represents the current holdings of an account for a given outcome (variable). </span>
+
+<span class="sd">    Contains the amount of shares held by present by the account owner. </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">account</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="n">Account</span><span class="p">)</span>
+    <span class="n">outcome</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="n">Outcome</span><span class="p">)</span>
+    <span class="n">amount</span> <span class="o">=</span> <span class="n">CurrencyField</span><span class="p">()</span>
+
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="AccountBalance.get"><a class="viewcode-back" href="../../market/structure.html#markets.models.AccountBalance.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="n">acc</span><span class="p">,</span> <span class="n">outcome</span><span class="p">):</span>
+        <span class="s">&quot;Gets or creates the supply for the given account. &quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">supply</span> <span class="o">=</span> <span class="n">outcome</span><span class="o">.</span><span class="n">accountbalance_set</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">account</span><span class="o">=</span><span class="n">acc</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">models</span><span class="o">.</span><span class="n">ObjectDoesNotExist</span><span class="p">:</span>
+            <span class="n">supply</span> <span class="o">=</span> <span class="n">AccountBalance</span><span class="p">(</span><span class="n">account</span><span class="o">=</span><span class="n">acc</span><span class="p">,</span> <span class="n">outcome</span><span class="o">=</span><span class="n">outcome</span><span class="p">)</span>
+            <span class="n">supply</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+        <span class="k">except</span> <span class="n">MultipleObjectsReturned</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;Too many supplies for account &#39;</span><span class="si">%s</span><span class="s">&#39;! Invalid state?.. &quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">acc</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">supply</span>
+</div>
+    <span class="nd">@staticmethod</span>
+    <span class="nd">@transaction.atomic</span>
+    <span class="k">def</span> <span class="nf">accept_order</span><span class="p">(</span><span class="n">order</span><span class="p">):</span>
+        <span class="n">acc</span> <span class="o">=</span> <span class="n">order</span><span class="o">.</span><span class="n">account</span>
+        <span class="k">for</span> <span class="n">pos</span> <span class="ow">in</span> <span class="n">order</span><span class="o">.</span><span class="n">position_set</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+            <span class="n">supply</span> <span class="o">=</span> <span class="n">AccountBalance</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">acc</span><span class="p">,</span> <span class="n">pos</span><span class="o">.</span><span class="n">outcome</span><span class="p">)</span>
+            <span class="n">supply</span><span class="o">.</span><span class="n">amount</span> <span class="o">+=</span> <span class="n">pos</span><span class="o">.</span><span class="n">amount</span>
+            <span class="n">supply</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+
+            </div>
+<div class="viewcode-block" id="MarketBalance"><a class="viewcode-back" href="../../market/structure.html#markets.models.MarketBalance">[docs]</a><span class="k">class</span> <span class="nc">MarketBalance</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The current market supply for a given outcome. </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">outcome</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">OneToOneField</span><span class="p">(</span><span class="n">Outcome</span><span class="p">)</span>
+    <span class="n">amount</span> <span class="o">=</span> <span class="n">CurrencyField</span><span class="p">()</span>
+
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="MarketBalance.get"><a class="viewcode-back" href="../../market/structure.html#markets.models.MarketBalance.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="n">outcome</span><span class="p">):</span>
+        <span class="s">&quot;Gets or creates the supply for the given outcome. &quot;</span>
+        <span class="k">try</span><span class="p">:</span>    <span class="c"># try to fetch an existing supply instance</span>
+            <span class="n">supply</span> <span class="o">=</span> <span class="n">outcome</span><span class="o">.</span><span class="n">marketsupply</span>
+        <span class="k">except</span> <span class="n">models</span><span class="o">.</span><span class="n">ObjectDoesNotExist</span><span class="p">:</span>
+            <span class="n">supply</span> <span class="o">=</span> <span class="n">MarketBalance</span><span class="p">(</span><span class="n">outcome</span><span class="o">=</span><span class="n">outcome</span><span class="p">)</span>
+            <span class="n">supply</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+        <span class="k">except</span> <span class="n">MultipleObjectsReturned</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;Too many supplies for a single outcome! Invalid state?.. &quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">supply</span>
+</div>
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="MarketBalance.for_event"><a class="viewcode-back" href="../../market/structure.html#markets.models.MarketBalance.for_event">[docs]</a>    <span class="k">def</span> <span class="nf">for_event</span><span class="p">(</span><span class="n">ev</span><span class="p">):</span>
+        <span class="s">&quot;Gets the market maker supplies for all outcomes in the given event. &quot;</span>
+        <span class="k">return</span> <span class="p">{</span> <span class="n">out</span><span class="p">:</span> <span class="n">MarketBalance</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">out</span><span class="p">)</span><span class="o">.</span><span class="n">amount</span> <span class="k">for</span> <span class="n">out</span> <span class="ow">in</span> <span class="n">ev</span><span class="o">.</span><span class="n">outcomes</span><span class="o">.</span><span class="n">all</span><span class="p">()</span> <span class="p">}</span>
+</div>
+    <span class="nd">@staticmethod</span>
+    <span class="nd">@transaction.atomic</span>
+<div class="viewcode-block" id="MarketBalance.accept_order"><a class="viewcode-back" href="../../market/structure.html#markets.models.MarketBalance.accept_order">[docs]</a>    <span class="k">def</span> <span class="nf">accept_order</span><span class="p">(</span><span class="n">order</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Adds the amounts from the given order to the market supply. &quot;&quot;&quot;</span>
+        <span class="n">acc</span> <span class="o">=</span> <span class="n">order</span><span class="o">.</span><span class="n">account</span>
+        <span class="k">for</span> <span class="n">pos</span> <span class="ow">in</span> <span class="n">order</span><span class="o">.</span><span class="n">position_set</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+            <span class="n">supply</span> <span class="o">=</span> <span class="n">MarketBalance</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">pos</span><span class="o">.</span><span class="n">outcome</span><span class="p">)</span>
+            <span class="n">supply</span><span class="o">.</span><span class="n">amount</span> <span class="o">-=</span> <span class="n">pos</span><span class="o">.</span><span class="n">amount</span>
+            <span class="n">supply</span><span class="o">.</span><span class="n">save</span><span class="p">()</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Ix.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.2</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

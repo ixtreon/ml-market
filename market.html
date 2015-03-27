@@ -1,0 +1,447 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Markets &mdash; ML-Market 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="ML-Market 0.1 documentation" href="index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">ML-Market 0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="markets">
+<h1>Markets<a class="headerlink" href="#markets" title="Permalink to this headline">¶</a></h1>
+<span class="target" id="module-markets.models"></span><dl class="class">
+<dt id="markets.models.Account">
+<em class="property">class </em><code class="descclassname">markets.models.</code><code class="descname">Account</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Account"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Account" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents a user&#8217;s bank account for a given market. 
+Normal users are allowed only a primary account 
+while admin users can create multiple secondary accounts.</p>
+<dl class="method">
+<dt id="markets.models.Account.place_order">
+<code class="descname">place_order</code><span class="sig-paren">(</span><em>market</em>, <em>position</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Account.place_order"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Account.place_order" title="Permalink to this definition">¶</a></dt>
+<dd><p>Tries to place an order from this account on the given market with the given positions. 
+Each position is a tuple of an outcome, and the amount to wager on that outcome.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="markets.models.AccountSupply">
+<em class="property">class </em><code class="descclassname">markets.models.</code><code class="descname">AccountSupply</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#AccountSupply"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.AccountSupply" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents the current holdings of an account for a given outcome (variable).</p>
+<p>Contains the amount of shares held by present by the account owner.</p>
+<dl class="staticmethod">
+<dt id="markets.models.AccountSupply.get">
+<em class="property">static </em><code class="descname">get</code><span class="sig-paren">(</span><em>acc</em>, <em>outcome</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#AccountSupply.get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.AccountSupply.get" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets or creates the supply for the given account.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="markets.models.DataSet">
+<em class="property">class </em><code class="descclassname">markets.models.</code><code class="descname">DataSet</code><span class="sig-paren">(</span><em>id</em>, <em>market_id</em>, <em>description</em>, <em>is_training</em>, <em>is_active</em>, <em>datum_count</em>, <em>active_datum_id</em>, <em>challenge_start</em>, <em>reveal_interval</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#DataSet"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.DataSet" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="markets.models.DataSet.active_datum">
+<code class="descname">active_datum</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#DataSet.active_datum"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.DataSet.active_datum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets the active datum. Throws an exception if it does not exist.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.DataSet.challenge_duration">
+<code class="descname">challenge_duration</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#DataSet.challenge_duration"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.DataSet.challenge_duration" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets a timedelate representation of the duration of a challenge.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.DataSet.challenge_end">
+<code class="descname">challenge_end</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#DataSet.challenge_end"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.DataSet.challenge_end" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets the datetime the active challenge ends at.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.DataSet.challenge_expired">
+<code class="descname">challenge_expired</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#DataSet.challenge_expired"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.DataSet.challenge_expired" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets whether this set&#8217;s current challenge has expired.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.DataSet.get_datum">
+<code class="descname">get_datum</code><span class="sig-paren">(</span><em>set_id</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#DataSet.get_datum"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.DataSet.get_datum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets the datum with the specified set_id. Throws an exception if it does not exist.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.DataSet.get_outcomes">
+<code class="descname">get_outcomes</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#DataSet.get_outcomes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.DataSet.get_outcomes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets all outcomes from the market.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.DataSet.has_data">
+<code class="descname">has_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#DataSet.has_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.DataSet.has_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets whether this dataset has any datums.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.DataSet.has_datum">
+<code class="descname">has_datum</code><span class="sig-paren">(</span><em>id</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#DataSet.has_datum"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.DataSet.has_datum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets whether this DataSet contains a datum with the given id.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.DataSet.next">
+<code class="descname">next</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#DataSet.next"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.DataSet.next" title="Permalink to this definition">¶</a></dt>
+<dd><p>Advances this active set to the next datum (challenge) _once_, and raises the dataset_expired signal.
+If there is no datum with such id, the set is made inactive. 
+Returns whether the set is active.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.DataSet.next_challenge_id">
+<code class="descname">next_challenge_id</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#DataSet.next_challenge_id"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.DataSet.next_challenge_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets the id of the next challenge (datum). 
+Throws an exception if there is no such datum.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.DataSet.next_challenge_in">
+<code class="descname">next_challenge_in</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#DataSet.next_challenge_in"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.DataSet.next_challenge_in" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets the time remaining until this challenge ends.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.DataSet.next_id">
+<code class="descname">next_id</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#DataSet.next_id"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.DataSet.next_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieves an id for the next datum and advances self.datum_count.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.DataSet.random">
+<code class="descname">random</code><span class="sig-paren">(</span><em>n_datums=10</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#DataSet.random"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.DataSet.random" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates some random datums for this dataset.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.DataSet.reset">
+<code class="descname">reset</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#DataSet.reset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.DataSet.reset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Resets active_datum_id to 0. If there is no datum with id of 0, an exception is thrown.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.DataSet.set_challenge">
+<code class="descname">set_challenge</code><span class="sig-paren">(</span><em>i</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#DataSet.set_challenge"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.DataSet.set_challenge" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sets the next challenge.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.DataSet.start">
+<code class="descname">start</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#DataSet.start"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.DataSet.start" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sets this DataSet as the active set for its market.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="markets.models.Datum">
+<em class="property">class </em><code class="descclassname">markets.models.</code><code class="descname">Datum</code><span class="sig-paren">(</span><em>id</em>, <em>data_set_id</em>, <em>x</em>, <em>set_id</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Datum"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Datum" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="markets.models.Datum.is_valid">
+<code class="descname">is_valid</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Datum.is_valid"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Datum.is_valid" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks whether this datum contains results for all market events.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.Datum.random">
+<code class="descname">random</code><span class="sig-paren">(</span><em>set</em>, <em>x=''</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Datum.random"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Datum.random" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a new datum with random results 
+for this DataSet&#8217;s outcomes and saves it</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="markets.models.Document">
+<em class="property">class </em><code class="descclassname">markets.models.</code><code class="descname">Document</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Document"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Document" title="Permalink to this definition">¶</a></dt>
+<dd><p>A document uploaded by the user to be potentially used as a dataset source.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="markets.models.Event">
+<em class="property">class </em><code class="descclassname">markets.models.</code><code class="descname">Event</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Event"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Event" title="Permalink to this definition">¶</a></dt>
+<dd><p>A set of outcomes for a market.</p>
+<dl class="method">
+<dt id="markets.models.Event.activity_histogram">
+<code class="descname">activity_histogram</code><span class="sig-paren">(</span><em>dt_from</em>, <em>dt_to</em>, <em>interval</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Event.activity_histogram"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Event.activity_histogram" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets the amount of trades that occured in the given time interval.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.Event.normalise_outcomes">
+<code class="descname">normalise_outcomes</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Event.normalise_outcomes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Event.normalise_outcomes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Makes sure all outcomes sum to 1</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.Event.price_histogram">
+<code class="descname">price_histogram</code><span class="sig-paren">(</span><em>dt_from</em>, <em>dt_to</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Event.price_histogram"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Event.price_histogram" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets the price histogram for the event in the given time interval.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.Event.random_outcome">
+<code class="descname">random_outcome</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Event.random_outcome"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Event.random_outcome" title="Permalink to this definition">¶</a></dt>
+<dd><p>Draws a random outcome from this set.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="markets.models.Market">
+<em class="property">class </em><code class="descclassname">markets.models.</code><code class="descname">Market</code><span class="sig-paren">(</span><em>id</em>, <em>description</em>, <em>pub_date</em>, <em>type</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Market"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Market" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="markets.models.Market.active_set">
+<code class="descname">active_set</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Market.active_set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Market.active_set" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets the active dataset for this market, or None if the market is inactive.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.Market.api_accounts">
+<code class="descname">api_accounts</code><span class="sig-paren">(</span><em>u</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Market.api_accounts"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Market.api_accounts" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets all API accounts created by the given user for this market.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.Market.create_primary_account">
+<code class="descname">create_primary_account</code><span class="sig-paren">(</span><em>u</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Market.create_primary_account"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Market.create_primary_account" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a primary account for the given user. Throws an exception if the account exists.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.Market.is_active">
+<code class="descname">is_active</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Market.is_active"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Market.is_active" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets whether this market has an active dataset.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.Market.n_datasets">
+<code class="descname">n_datasets</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Market.n_datasets"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Market.n_datasets" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets the total number of datasets for this market.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.Market.n_events">
+<code class="descname">n_events</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Market.n_events"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Market.n_events" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets the total amount of events registered with this market.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.Market.primary_account">
+<code class="descname">primary_account</code><span class="sig-paren">(</span><em>u</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Market.primary_account"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Market.primary_account" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the user&#8217;s primary account for this market, or None if they are not registered.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="markets.models.MarketState">
+<em class="property">class </em><code class="descclassname">markets.models.</code><code class="descname">MarketState</code><span class="sig-paren">(</span><em>id</em>, <em>market_id</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#MarketState"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.MarketState" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="markets.models.MarketSupply">
+<em class="property">class </em><code class="descclassname">markets.models.</code><code class="descname">MarketSupply</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#MarketSupply"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.MarketSupply" title="Permalink to this definition">¶</a></dt>
+<dd><p>The current market supply for a given outcome.</p>
+<dl class="staticmethod">
+<dt id="markets.models.MarketSupply.accept_order">
+<em class="property">static </em><code class="descname">accept_order</code><span class="sig-paren">(</span><em>order</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#MarketSupply.accept_order"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.MarketSupply.accept_order" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds the amounts from the given order to the market supply.</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="markets.models.MarketSupply.for_event">
+<em class="property">static </em><code class="descname">for_event</code><span class="sig-paren">(</span><em>ev</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#MarketSupply.for_event"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.MarketSupply.for_event" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets the market maker supplies for all outcomes in the given event.</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="markets.models.MarketSupply.get">
+<em class="property">static </em><code class="descname">get</code><span class="sig-paren">(</span><em>outcome</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#MarketSupply.get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.MarketSupply.get" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets or creates the supply for the given outcome.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="markets.models.Order">
+<em class="property">class </em><code class="descclassname">markets.models.</code><code class="descname">Order</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Order"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Order" title="Permalink to this definition">¶</a></dt>
+<dd><p>A pending or already processed order from a user for some market</p>
+<dl class="method">
+<dt id="markets.models.Order.get_position">
+<code class="descname">get_position</code><span class="sig-paren">(</span><em>outcome</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Order.get_position"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Order.get_position" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets this order&#8217;s position for the specified outcome.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.Order.group_by_event">
+<code class="descname">group_by_event</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Order.group_by_event"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Order.group_by_event" title="Permalink to this definition">¶</a></dt>
+<dd><p>Groups all positions in this order by their event.
+Returns a dictionary of the events with the list of positions on them as the value.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.Order.is_processed">
+<code class="descname">is_processed</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Order.is_processed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Order.is_processed" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns whether all positions in this order are processed.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.Order.new">
+<code class="descname">new</code><span class="sig-paren">(</span><em>market</em>, <em>account</em>, <em>positions</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Order.new"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Order.new" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a new multi-position order on the given market by the given account.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.Order.set_processed">
+<code class="descname">set_processed</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Order.set_processed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Order.set_processed" title="Permalink to this definition">¶</a></dt>
+<dd><p>Marks all positions in this order as processed.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.models.Order.unprocessed_orders">
+<code class="descname">unprocessed_orders</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Order.unprocessed_orders"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Order.unprocessed_orders" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieves all unprocessed orders from the database.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="markets.models.Outcome">
+<em class="property">class </em><code class="descclassname">markets.models.</code><code class="descname">Outcome</code><span class="sig-paren">(</span><em>id</em>, <em>event_id</em>, <em>name</em>, <em>current_price</em>, <em>sell_offer</em>, <em>buy_offer</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Outcome"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Outcome" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="markets.models.Position">
+<em class="property">class </em><code class="descclassname">markets.models.</code><code class="descname">Position</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Position"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Position" title="Permalink to this definition">¶</a></dt>
+<dd><p>A player&#8217;s position (opinion) about a given outcome as part of an order.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="markets.models.Result">
+<em class="property">class </em><code class="descclassname">markets.models.</code><code class="descname">Result</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/models.html#Result"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.models.Result" title="Permalink to this definition">¶</a></dt>
+<dd><p>The actual outcome of a given event for the specified datum.</p>
+</dd></dl>
+
+<span class="target" id="module-markets.marketmaker"></span><dl class="class">
+<dt id="markets.marketmaker.MarketMaker">
+<em class="property">class </em><code class="descclassname">markets.marketmaker.</code><code class="descname">MarketMaker</code><a class="reference internal" href="_modules/markets/marketmaker.html#MarketMaker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.marketmaker.MarketMaker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specifies the actions each market maker should implement.</p>
+<dl class="method">
+<dt id="markets.marketmaker.MarketMaker.can_quote">
+<code class="descname">can_quote</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/marketmaker.html#MarketMaker.can_quote"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.marketmaker.MarketMaker.can_quote" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets whether the market maker provides price quotes.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.marketmaker.MarketMaker.order_placed">
+<code class="descname">order_placed</code><span class="sig-paren">(</span><em>ord</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/marketmaker.html#MarketMaker.order_placed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.marketmaker.MarketMaker.order_placed" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handles placing of an order by the user.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="markets.marketmaker.MarketMaker.price_quote">
+<code class="descname">price_quote</code><span class="sig-paren">(</span><em>ord</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/markets/marketmaker.html#MarketMaker.price_quote"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#markets.marketmaker.MarketMaker.price_quote" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets a price quote for the given order.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/market.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Ix.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.2</a>
+      
+      |
+      <a href="_sources/market.txt"
+          rel="nofollow">Page source</a></li>
+    </div>
+
+    
+
+    
+  </body>
+</html>
