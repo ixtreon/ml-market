@@ -2,24 +2,37 @@
 {% load staticfiles %}
 {% block content %}
 
+<style>
+    #content
+    {
+        text-align:center;
+    }
+</style>
+
 <h1>Active Markets</h1>
 
-<table border="1">
+<table border="1" id="markets-table">
 <tr>
     <th>Description</th>
     <th>Date Started</th>
     <th>Date Due</th>
+    <th>Market Type</th>
     <th>Current Funds</th>
 </tr>
 
 {% if markets %}
     {% for m in markets %}
     <tr>
-        <td><a href="{% url 'markets:market' m.id %}">{{ m.description }}</a></td>
-        <td>{{ m.challenge_start }}</td>
+        <td><a data-tool="{{ m.description }}" class="tooltip bottom" href="{% url 'markets:market' m.id %}">
+            {{ m.name }}
+        </a></td>
+        <td><a data-tool="???" ticks="{{m.challenge_start_ticks}}" class="tooltip bottom" name="countdown">
+            {{ m.challenge_start }}
+        </a></td>
         <td><a data-tool="???" ticks="{{m.challenge_end_ticks}}" class="tooltip bottom" name="countdown">
             {{ m.challenge_end }}
         </a></td>
+        <td>{{ m.type_string }}</td>
         <td>{% if m.primary_funds %}    {{ m.primary_funds }}
             {% else %}                  N/A
             {% endif %}</td>
@@ -41,10 +54,16 @@
             var t = tips[i];
             var expire = new Date(parseInt(t.getAttribute("ticks"))).getTime();
             
-            var str = getTimeSpanString(now, expire)
+            if (expire > now) {
+                var str = getTimeSpanString(now, expire)
 
-            t.setAttribute("data-tool", str + " left")
+                t.setAttribute("data-tool", str + " left")
+            }
+            else {
+                var str = getTimeSpanString(expire, now)
 
+                t.setAttribute("data-tool", str + " ago")
+            }
         }
     }
 

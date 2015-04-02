@@ -9,6 +9,7 @@ from markets.api.viewsets import MarketViewSet
 urlpatterns = patterns('',
     url(r'^$', views.MarketIndexView.as_view(), name='markets'),
     url(r'^(?P<pk>\d+)/$', views.market_index, name='market'),
+    url(r'^(?P<mkt_id>\d+)/(?P<ev_id>\d+)$', views.event_index, name='event'),
     url(r'^remove_order/(?P<pk>\d+)/$', views.order_remove, name='remove_order'),
     url(r'^(?P<pk>\d+)/join/$', views.market_join, name='market_join'),
     url(r'^(?P<pk>\d+)/hist/', views.market_activity),

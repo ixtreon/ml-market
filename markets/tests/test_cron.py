@@ -35,7 +35,7 @@ class CronTestCase(TestCase):
         print("Started a challenge to expire in %d seconds. " % set_duration_sec)
 
         sleep(set_duration_sec + set_extra_timeout)
-        sleep(set_duration_sec + set_extra_timeout)
+
         self.assertEqual(self.set.active_datum_id, 1)
         #Timer(5 + 5, 
         #      lambda:

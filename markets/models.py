@@ -15,6 +15,7 @@ from enumfields.fields import EnumIntegerField
 from _datetime import timedelta
 import itertools
 from itertools import groupby
+import json
 
 ## Decimal handling
 decimal_places = 2
@@ -28,11 +29,26 @@ def t():
     return timezone.now()
 
 class MarketType(Enum):
+    """
+    The different types of markets with regard to the market maker that is used. 
+    """
     order_book = 1
     parimutuel = 2
     msr_maker = 3
 
+    def str(ty):
+        if ty == MarketType.order_book:
+            return "Order Book"
+        elif ty == MarketType.parimutuel:
+            return "Parimutuel"
+        elif ty == MarketType.msr_maker:
+            return "MSR Maker"
+        return str(ty)
+
 class Interval():
+    """
+
+    """
     Years = lambda dt: dt.year
     Months = lambda dt: Interval.Years(dt) * 12 + dt.month
     Days = lambda dt: Interval.Months(dt) * 31 + dt.day
@@ -42,23 +58,39 @@ class Interval():
 
 
 class Market(models.Model):
-    name = models.CharField(max_length=255, default='MarketName')
-    description = models.CharField(max_length=255, default='Add a description here. ')
+    name = models.CharField(max_length=255, default='Market name here. ')
+    description = models.CharField(max_length=1024, default='Market description here. ')
 
     pub_date = models.DateTimeField('Date Published')
 
     type = EnumIntegerField(MarketType, default=MarketType.msr_maker)
+
+    def type_string(self):
+        return MarketType.str(self.type)
 
     def challenge_end(self):
         if self.is_active():
             return self.active_set().challenge_end()
         else:
             return None
-
+        
     def challenge_end_ticks(self):
-        end = self.challenge_end()
-        if end:
-            return int(time.mktime(end.timetuple()) * 1000)
+        """
+        Gets the challenge_end datetime in the form of ticks elapsed since the Epoch. 
+        """
+        t = self.challenge_end()
+        if t:
+            return int(time.mktime(t.timetuple()) * 1000)
+        else:
+            return None
+
+    def challenge_start_ticks(self):
+        """
+        Gets the challenge_start datetime in the form of ticks elapsed since the Epoch. 
+        """
+        t = self.challenge_start()
+        if t:
+            return int(time.mktime(t.timetuple()) * 1000)
         else:
             return None
 
@@ -77,6 +109,12 @@ class Market(models.Model):
         except MultipleObjectsReturned:
             raise Exception("Too many active datasets! Invalid state?.. ")
 
+    def active_datum(self):
+        set = self.active_set()
+        if not set:
+            return None
+        return set.active_datum()
+
     def n_events(self):
         "Gets the total amount of events registered with this market. "
         return Event.objects.filter(market=self).count()
@@ -89,6 +127,7 @@ class Market(models.Model):
         "Returns the user's primary account for this market, or None if they are not registered. "
         if u.is_anonymous():
             return None
+
         try:
             return u.account_set.get(market=self, is_primary=True)
         except Account.DoesNotExist:
@@ -121,25 +160,26 @@ class Market(models.Model):
         pos = []
         outcomes = Outcome.objects.filter(event__market=self)
 
-        for ord in outcomes:
+        for out in outcomes:
             try:
-                ord_pos = int(post["pos_%i" % (ord.id)])
+                ord_pos = int(post["pos_%i" % (out.id)])
             except:
                 ord_pos = 0
 
             if ord_pos != 0:
-                pos.append((ord, ord_pos))
+                pos.append((out, ord_pos))
         return pos
 
     def __str__(self):
-        return self.description
+        return self.name
 
     def save(self, *args, **kwargs):
         # Sets the pub_date field the first time the object is saved
         if self.pub_date == None:
             self.pub_date = timezone.now()
-        super(Market, self).save()
+            
 
+        super(Market, self).save()
 
 class Account(models.Model):
     """
@@ -158,7 +198,6 @@ class Account(models.Model):
     
     def all_orders(self):
         return self.order_set.all()
-
 
     @transaction.atomic
     def place_order(self, market, position):
@@ -186,12 +225,13 @@ class Account(models.Model):
 
 class Event(models.Model):
     "A set of outcomes for a market. "
-    description = models.CharField(max_length=255, default='Some outcome set')
+    name = models.CharField(max_length=255, default='Event name here. ')
+    description = models.CharField(max_length=1024, default='Event description here. ')
     market = models.ForeignKey(Market, related_name="events")
 
     def normalise_outcomes(self):
         "Makes sure all outcomes sum to 1"
-        # get the outcomes from the market
+        # unused
         outcomes = list(self.outcomes.all())
         
         pdf_invalid = (self.outcomes.filter(current_price=0).count() > 0)
@@ -233,7 +273,6 @@ class Event(models.Model):
         trades = list(trades)
         trades.sort(key=lambda p: p.order.timestamp)
 
-        print("KUR: %s" % len(trades))
 
         first_bin = interval(dt_from)
         last_bin = interval(dt_to)
@@ -248,20 +287,35 @@ class Event(models.Model):
             bins.append(counts)
         return bins
 
+    def get_prices(self):
+        return [(o.buy_offer, o.sell_offer) for o in self.outcomes.all()]
+
+    def json_prices(self):
+        return json.dumps([ (o.name, int(100 * o.current_price)) for o in self.outcomes.all()])
+
     def __str__(self):
-        return "%s (%s)" % (self.description, self.market)
+        return self.name
 
 # represents a single outcome in a multiclass market. 
 class Outcome(models.Model):
     event = models.ForeignKey(Event, default=1, related_name='outcomes')
-
+        
     name = models.CharField(max_length=255)
+
+    description = models.CharField(max_length=1024, default='Outcome description here. ')
+
 
     # TODO: remove
     current_price = CurrencyField()
 
     sell_offer = CurrencyField()
     buy_offer = CurrencyField()
+
+    def market_balance(self):
+        return MarketBalance.get(self).amount
+
+    def price_tooltip(self):
+        return "You can buy a single share for %.2f.\nYou can sell a single share for %.2f. " % (self.buy_offer, -self.sell_offer)
 
     def __str__(self):
         return self.name + " : " + str(self.current_price)
@@ -270,13 +324,15 @@ class DataSet(models.Model):
     # the market this dataset is for
     market = models.ForeignKey(Market)
 
-    description = models.CharField(max_length=255, default='Add a description here. ')
+    name = models.CharField(max_length=255, default='DataSet name here. ')
+
+    description = models.CharField(max_length=1024, default='DataSet description here. ')
 
     # whether the dataset is intended for training
     # currently unused in code
     is_training = models.BooleanField(default=False)
 
-    # whether the data set is active for the given market
+    # whether the data set is active for the given markte
     is_active = models.BooleanField(default=False)
 
     # the count of datums
@@ -285,9 +341,9 @@ class DataSet(models.Model):
 
     # the id of the active datum
     active_datum_id = models.IntegerField('Active challenge id', default=0)
-
+    
     # time when the active datum was revealed
-    challenge_start = models.DateTimeField('Challenge started', default=datetime.datetime(2014,1,1))
+    challenge_start = models.DateTimeField('Challenge started', default=timezone.datetime(2014,1,1))
     
     # interval between consecutive challenges in days
     reveal_interval = models.FloatField('Interval between challenges', default=7)
@@ -307,30 +363,55 @@ class DataSet(models.Model):
         return id
 
     def next_challenge_in(self):
-        "Gets the time remaining until this challenge ends. "
-        return self.challenge_end() - timezone.now()
+        """
+        Gets the time remaining until this challenge ends as a string. 
+        """
+        if self.is_active:
+            return self.challenge_end() - timezone.now()
+        return "N/A"
 
     def challenge_duration(self):
-        "Gets a timedelate representation of the duration of a challenge. "
+        """
+        Gets a timedelta representation of the duration of a challenge. 
+        """
         return datetime.timedelta(days=self.reveal_interval)
 
     def challenge_end(self):
-        "Gets the datetime the active challenge ends at. "
+        """
+        Gets the DateTime the active challenge ends at. 
+
+        If this challenge has a negative duration, it is assumed to continue indefinitely. 
+        """
+        if self.reveal_interval < 0:
+            return datetime.datetime.max
         return self.challenge_start + self.challenge_duration()
 
     def challenge_expired(self):
-        """Gets whether this set's current challenge has expired. """
+        """
+        Gets whether this set's current challenge has expired.
+        """
         return self.challenge_end() < timezone.now()
 
+    def force_advance(self):
+        """
+        Forces the finalisation of this dataset's current challenge and start the new one. 
+        """
+        self.challenge_start = timezone.now() - self.challenge_duration()
+        self.save()
+
     def has_data(self):
-        "Gets whether this dataset has any datums. "
+        """
+        Gets whether this dataset has any datums. 
+        """
         assert self.datum_set.count() == self.datum_count
         assert self.datum_count >= 0
 
         return self.datum_count > 0
 
     def has_datum(self, id):
-        "Gets whether this DataSet contains a datum with the given id. "
+        """
+        Gets whether this DataSet contains a datum with the given id. 
+        """
         try:
             d = self.get_datum(id)
         except ObjectDoesNotExist:
@@ -340,11 +421,15 @@ class DataSet(models.Model):
         return True
 
     def active_datum(self):
-        "Gets the active datum. Throws an exception if it does not exist. "
+        """
+        Gets the active datum. Throws an exception if it does not exist. 
+        """
         return self.get_datum(self.active_datum_id)
 
     def get_outcomes(self):
-        "Gets all outcomes from the market. "
+        """
+        Gets all outcomes defined for this market. 
+        """
         return self.market.outcomes.all()
 
     @transaction.atomic
@@ -411,10 +496,7 @@ class DataSet(models.Model):
         If there is no datum with such id, the set is made inactive. 
         Returns whether the set is active. 
         """
-
         assert self.is_active
-
-        print("try advance set %s" % self)
 
         # Continue only if there is data in the set
         # should not typically arrive here
@@ -449,22 +531,22 @@ class DataSet(models.Model):
             logger.info("Ended challenge #%d for dataset %s (no next challenge). " % (self.active_datum_id, str(self)))
             self.save()
             return
-
-        self.challenge_start = self.challenge_end() + self.challenge_duration()
+        
+        self.challenge_start = self.challenge_end()
         logger.info("Started next challenge #%d for dataset %s. Ends at %s" % (self.active_datum_id, str(self), self.challenge_end()))
 
         self.save()
         return self.is_active
 
 
-    def random(self, n_datums=10):
+    def random(self, n_data=10):
         """
         Generates some random datums for this dataset. 
         """
-        if n_datums <= 0:
+        if n_data <= 0:
             raise ValueError("n_datums must be positive!")
 
-        for i in range(n_datums):
+        for i in range(n_data):
             dat = Datum.random(self)
         self.save()
 
@@ -474,34 +556,46 @@ class DataSet(models.Model):
         pass
 
     def __str__(self):
-        return "dataset #%d" % (self.id)
+        return self.name
 
     def save(self, *args, **kwargs):
+        val = super().save(*args, **kwargs)
         dataset_change.send(self.__class__, set=self)
-        return super().save(*args, **kwargs)
+        return val
 
 class Datum(models.Model):
+    """
+    Represents an observation in the prediction market. 
+    
+    Defines a result for each event that was observed in this instance, along with a description specific to the observation. 
+    """
     # the set this data point is part of
     data_set = models.ForeignKey(DataSet)
-    # the test data
-    x = models.CharField(max_length=1024)
+
+    # the test name
+    name = models.CharField(max_length=255, default="Datum name here")
+
+    # the test description
+    description = models.CharField(max_length=1024, default="Datum description here")
 
     # the consecutive id of the datum in the set
     set_id = models.IntegerField()
 
-    def random(set, x = ""):
+    @staticmethod
+    def random(set, name = "", description = ""):
         """
         Creates a new datum with random results 
-        for this DataSet's outcomes and saves it
+        for the outcomes of this DataSet, and then saves it
         """
 
         id = set.next_id()
 
-        if not x: # generate a placeholder name
-            x = "%s %s" % (set.description, id)
+        if not name: # generate a placeholder name
+            name = "%s %s" % (set.description, id)
 
         dat = Datum(
-            x = x,
+            name = name,
+            description = description,
             set_id = id,
             data_set = set)
         dat.save()
@@ -515,8 +609,7 @@ class Datum(models.Model):
                 outcome=o)
             r.save()
 
-    def new(set, results):
-        pass
+        return dat
 
     def is_valid(self):
         "Checks whether this datum contains results for all market events. "
@@ -536,6 +629,10 @@ class Result(models.Model):
     "The actual outcome of a given event for the specified datum. "
     datum = models.ForeignKey(Datum)
     outcome = models.ForeignKey(Outcome)
+
+    def event(self):
+        return self.outcome.event
+
     def __str__(self):
         return "(%s) wins %s" % (self.outcome, self.datum)
 
@@ -551,6 +648,14 @@ class Order(models.Model):
 
     # whether the order was completed successfully
     is_successful = models.BooleanField(default=False)
+
+    @staticmethod
+    def reset(ev):
+        """
+        Cancels all orders for the given event. 
+        """
+        for ord in Position.objects.filter(outcome__event=ev, is_processed=False):
+            ord.cancel()
 
     def set_processed(self):
         """Marks all positions in this order as processed. """
@@ -591,15 +696,18 @@ class Order(models.Model):
         all_ps.sort(key=get_ev_id)
         return [(ev,list(ps)) for (ev,ps) in groupby(all_ps, key=lambda p: p.outcome.event)]
 
-
     # creates a new order for the given account playing on the given market. 
+    @staticmethod
     @transaction.atomic
     def new_single(market, account, outcome, amount):
         return Order.new(market, account, [(outcome,amount)]) 
 
+    @staticmethod
     @transaction.atomic
     def new(market, account, positions):
-        "Creates a new multi-position order on the given market by the given account. "
+        """
+        Creates a new order for the specified market by the given account, specifying the provided positions. 
+        """
 
         # get this market's active challenge
         dataset = market.active_set()
@@ -656,6 +764,112 @@ class Position(models.Model):
             outcome=outcome,
             amount=amount)
     
+    def split(self, amount, price):
+        """
+        Resolves a part of this position. 
+        
+        Returns the newly created order which partially completes the solution, or None if the position was fulfilled. """
+
+        assert amount != 0
+        assert (amount > 0) ^ (self.amount < 0)
+        assert (self.price > price) ^ (self.amount < 0)
+
+        parent_order = self.order
+        sum = amount * price
+
+        # modify the funds
+        acc = self.order.account
+        acc.funds 
+        # and the account balance
+
+        if amount == self.amount:
+            self.is_processed = True
+            self.save()
+            return None
+        else:
+            # remove the amount from this position
+            self.amount -= amount
+            self.save()
+
+            # create a new, completed dummy order with the same stats as this one
+            new_order = Order(account=parent_order.account, datum=parent_order.datum, timestamp=parent_order.timestamp, is_successful = True)
+            new_order.save()
+
+            # add the amount
+            new_pos = Position(
+                order=new_order,
+                outcome=self.outcome,
+                amount = amount,
+                contract_price = price,
+                is_processed=True)
+            new_pos.save()
+
+            return new_order
+
+    def partial_complete(pa, pb):
+        """
+        Attempts to partially complete the given two positions. 
+        
+        In order to do so the positions must be of opposite type, compatible prices and on the same outcome. 
+
+        The price at which the deal is completed is taken as the average of each player's suggested price. 
+
+        The amount of shares exchanged depends on the amounts defined by each position. 
+        In case one of the positions can be completed only partially, the amount of traded shares are subtracted from it
+        and the trade is completed by creating a new Order which contains the fulfilled part of the transaction. 
+        """
+        # make sure a sells, b buys
+        if pa.amount > 0:
+            pa, pb = pb, pa
+
+        assert pb.amount > 0
+        assert pa.outcome == pb.outcome
+        assert (pb.contract_price >= pa.amount)
+
+        # get the contract price at which the deal is made
+        # if the prices differ, takes their average
+        if pb.contract_price != pa.contract_price:
+            price = (pb.contract_price + pa.contract_price) / 2
+        else:
+            price = pa.contract_price
+
+        # get the amount and total sum for the current deal
+        amount = min(-pa.amount, pb.amount)
+        total_sum = price * amount
+        
+        # modify the accounts' funds
+        a_acc = pa.order.account
+        a_acc.funds += total_sum
+        a_acc.save()
+        
+        b_acc = pb.order.account
+        b_acc.funds -= total_sum
+        b_acc.save()
+
+        # modify the account balances
+        a_balance = AccountBalance.get(a_acc, self.outcome)
+        a_balance.amount -= amount
+
+        b_balance = AccountBalance.get(b_acc, self.outcome)
+        b_balance.amount -= amount
+
+        # make sure partial orders are properly processed
+        if amount == pb.amount:
+            # the buyer's position was processed
+            pb.is_processed = True
+            pb.save()
+
+            # split position a
+            pa.split(amount, price)
+        else:
+            # the seller's position was processed
+            pa.is_processed = True
+            pa.save()
+
+            # split position b
+            pb.split(amount, price)
+        return amount
+
     # gets the total cost for this position. 
     def get_cost(self):
         return self.amount * self.price
@@ -707,6 +921,21 @@ class AccountBalance(models.Model):
             raise Exception("Too many supplies for account '%s'! Invalid state?.. " % (acc))
         return supply
 
+    def get_all(outcome):
+        pass
+    
+    @staticmethod
+    def reset(ev):
+        """
+        Resets the account balances for all players and outcomes in the given event. 
+        """
+        for out in ev.outcomes.all():
+            for acc in out.accountbalance_set.all():
+                
+                acc.amount = 0
+                acc.save()
+
+
     @staticmethod
     @transaction.atomic
     def accept_order(order):
@@ -728,7 +957,7 @@ class MarketBalance(models.Model):
     def get(outcome):
         "Gets or creates the supply for the given outcome. "
         try:    # try to fetch an existing supply instance
-            supply = outcome.marketsupply
+            supply = outcome.marketbalance
         except models.ObjectDoesNotExist:
             supply = MarketBalance(outcome=outcome)
             supply.save()
@@ -742,11 +971,25 @@ class MarketBalance(models.Model):
         return { out: MarketBalance.get(out).amount for out in ev.outcomes.all() }
 
     @staticmethod
+    def reset(ev):
+        """
+        Resets the market maker's balance for all outcomes in the given event. 
+        """
+        for out in ev.outcomes.all():
+            try:
+                supply = out.marketbalance
+            except:
+                pass
+            else:
+                supply.amount = 0
+                supply.save()
+
+    @staticmethod
     @transaction.atomic
     def accept_order(order):
         """Adds the amounts from the given order to the market supply. """
         acc = order.account
         for pos in order.position_set.all():
             supply = MarketBalance.get(pos.outcome)
-            supply.amount -= pos.amount
+            supply.amount += pos.amount
             supply.save()

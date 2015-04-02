@@ -2,12 +2,12 @@ from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponseRedirect
 from django.core.urlresolvers import reverse
 
-from markets.models import Market, Account, Order, Outcome, AccountBalance
+from markets.models import Market, Account, Order, Outcome, AccountBalance, Event
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.views import generic
 from django import forms
-from markets.forms import MarketForm, UploadForm, UserForm
+from markets.forms import MarketForm, UploadForm, UserForm, EventForm
 
 from markets.log import logger
 from django.http.response import HttpResponse
@@ -29,16 +29,18 @@ class MarketIndexView(generic.ListView):
     
     # returns all markets (no paging whatsoever)
     def get_queryset(self):
-        markets = [m for m in Market.objects.order_by('-pub_date') if m.is_active()]
+        markets = [m for m in Market.objects.order_by('pub_date') if m.is_active()]
         return markets
 
     def get_context_data(self, **kwargs):
         # Call the base first to get a context
         context = super().get_context_data(**kwargs)
+
         # Then append to each market the current user's funds
         u = self.request.user
         for m in context['markets']:
             acc = m.primary_account(u)
+
             if acc:
                 m.primary_funds = acc.funds
         return context
@@ -61,11 +63,30 @@ def market_activity(request, pk):
     response_data = {}
     m = get_object_or_404(Market, id=int(pk))
 
+    raise NotImplementedError()
 
-    response_data['bur'] = 'kek'
     return HttpResponse(json.dumps(response_data), content_type="application/json")
 
+@login_required
+def event_index(request, mkt_id, ev_id):
+    
+    mkt = get_object_or_404(Market, id=int(mkt_id))
+    ev = get_object_or_404(Event, id=int(ev_id), market__id=int(mkt_id))
+    acc = mkt.primary_account(request.user)
 
+    if request.method == 'POST' and acc != None:
+        
+        position = mkt.parse_bid(request.POST)
+
+        ord = acc.place_order(mkt, position)
+
+
+    form = EventForm(acc, instance=ev)
+
+    
+    return render(request, 'market/event.html', {
+        'form': form,
+        })
 # displays a market along with an order form for the user. 
 @login_required
 def market_index(request, pk):

@@ -2,7 +2,20 @@
 
 {% block content %}
 
-<h1>{{ form.market.description }}</h1>
+<link rel="stylesheet" href="{{ STATIC_URL }}css/market.css">
+
+<h1>{{ form.market.name }}</h1>
+<i>{{ form.market.description }}</i>
+
+<h3>DataSet: {{ form.market.active_set.name }}</h3>
+<p>
+    {{ form.market.active_set.description | safe }}
+</p>
+<h3>Challenge: {{ form.market.active_datum.name }}</h3>
+
+<p>
+    {{ form.market.active_datum.description | safe }}
+</p>
 
 {# Check whether the user has an account for this market. #}
 {% if form.market_active %}
@@ -10,17 +23,47 @@
     {% if form.account == None %}
         {% include "market/join.html" %}
     {% else %}
-        <p>Your current bank is {{ form.account.funds }} credits. </p>
 
+        {# setup the market tab menu #}
+        <ul id="market-tab-menu">
+            <li class="current"><a href="#tab-1">Events</a>
+            </li>
+            <li><a href="#tab-2">Multi-Order</a>
+            </li>
+            <li><a href="#tab-3">History</a>
+            </li>
+        </ul>
+        <br />
+        {# add the actual market tabs #}
+        <div class="market-tabs">
+            <div id="tab-1" class="market-tab">
+                <div class="content_item">{% include "forms/event_list.html" %}</div>
+            </div>
+            <div id="tab-2" class="market-tab">
+                <div class="content_item">{% include "forms/market_bet.html" %}</div>
+            </div>
+            <div id="tab-3" class="market-tab">
+                <div class="content_item">{% include "forms/view_orders.html" %}</div>
+            </div>
+        </div>
+           
+        {# code for the tabs #}
+        <script>
+            $(document).ready(function () {
+                $("#market-tab-menu a").click(function (event) {
+                    event.preventDefault();
+                    $(this).parent().addClass("current");
+                    $(this).parent().siblings().removeClass("current");
+                    var tab = $(this).attr("href");
+                    $(".market-tab").not(tab).css("display", "none");
+                    $(tab).fadeIn();
+                });
+            });
+        </script>
 
-        {# betting form #}
-        <div class="content_item">{% include "forms/bet_multi.html" %}</div>
-        <div class="content_item">{% include "forms/view_orders.html" %}</div>
     {% endif %}
 {% else %}
     This market is currently inactive. 
 {% endif %}
-
-
 
 {% endblock %}

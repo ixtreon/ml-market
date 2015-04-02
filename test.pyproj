@@ -99,14 +99,21 @@
       <SubType>Code</SubType>
     </Content>
     <Content Include="markets\static\countdown.js" />
+    <Content Include="markets\static\css\market.css" />
     <Content Include="markets\static\mg\metricsgraphics.css" />
     <Content Include="markets\static\mg\metricsgraphics.min.js" />
+    <Content Include="markets\static\price_bar.js" />
+    <Content Include="markets\templates\admin\base_site.html" />
+    <Content Include="markets\templates\forms\event_list.html">
+      <SubType>Code</SubType>
+    </Content>
     <Content Include="markets\templates\index.html" />
     <Content Include="markets\static\jquery-1.11.1.js" />
     <Content Include="markets\templates\base.html" />
     <Content Include="markets\static\css\base.css" />
-    <Content Include="markets\templates\forms\bet_multi.html" />
-    <Content Include="markets\templates\forms\bet_single.html" />
+    <Content Include="markets\templates\forms\market_bet.html" />
+    <Content Include="markets\templates\forms\event_bet.html" />
+    <Content Include="markets\templates\market\event.html" />
     <Content Include="markets\templates\market\join.html" />
     <Content Include="markets\templates\forms\view_orders.html" />
     <Content Include="markets\templates\forms\view_players.html" />
@@ -116,6 +123,7 @@
     <Content Include="markets\templates\upload.html" />
     <Content Include="markets\templates\user\index.html" />
     <Content Include="mainsite\templates\admin\base_site.html" />
+    <Content Include="README.md" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="doc\market\" />
@@ -127,6 +135,7 @@
     <Folder Include="markets\fields\" />
     <Folder Include="markets\api\" />
     <Folder Include="markets\static\mg\" />
+    <Folder Include="markets\templates\admin\" />
     <Folder Include="markets\templates\user\" />
     <Folder Include="markets\tests\" />
     <Folder Include="markets\templates\forms\" />

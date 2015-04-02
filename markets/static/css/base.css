@@ -54,27 +54,42 @@ header {
 }
 
 #content {
+    text-align: left;
     border: 1px solid black;
     padding: 12px;
     margin-top: 12px;
     margin-left: auto;
     margin-right: auto;
 
-    /*width:  80%;*/
+    width:  80%;
     display: inline-block;
 }
 
 .error {
-display: block;        
-color: #C00;        
-font-size: 85%;        
-
-font-weight: normal;
-
-/*text-transform: uppercase;*/   
+    display: block;
+    color: #C00;
+    font-size: 85%;
+    font-weight: normal;
+}
+#markets-table {
+    width: 100%;
 }
 
-/* Tooltip */
+/*text-transform: uppercase;*/   
+
+
+/*
+Make links prettier    
+*/
+a:link {color: black;}      /* unvisited link */
+a:visited {color: black;}   /* visited link */
+a:hover {color: rgb(50,50,50);}     /* mouse over link */
+a:active {color: black;}    /* selected link */
+
+/* 
+Tooltip Code
+Source: http://designshack.net/articles/css/html5-css3-anchor-link-tooltips/
+*/
 a.tooltip{
   position: relative;
   display: inline;
@@ -88,8 +103,10 @@ a.tooltip:after{
   opacity: 0;
   content: attr(data-tool); /* might also use attr(title) */
   height: auto;
-  min-width: 100px;
   padding: 5px 8px;
+  min-width: 300px;
+  max-width: 500px;
+  width:auto;
   z-index: 999;
   color: #fff;
   text-decoration: none;
@@ -98,6 +115,10 @@ a.tooltip:after{
   -webkit-border-radius: 5px;
   -moz-border-radius: 5px;
   border-radius: 5px;
+}
+
+a.tooltip .tool-content {
+
 }
  
 a.tooltip:before {
@@ -114,7 +135,9 @@ a.tooltip:before {
   border-color: rgba(0,0,0,0.85) transparent transparent transparent;
 }
 a.tooltip:hover:after{ visibility: visible; opacity: 1; bottom: 20px; }
-a.tooltip:hover:before{ visibility: visible; opacity: 1; bottom: 14px; }/* tips on bottom */
+a.tooltip:hover:before { visibility: visible; opacity: 1; bottom: 14px; }
+
+/* tips on the bottom */
 a.tooltip.bottom:after { bottom: auto; top: 0; }
 a.tooltip.bottom:hover:after { top: 28px; }
 a.tooltip.bottom:before {

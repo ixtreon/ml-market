@@ -6,6 +6,16 @@ from django.forms import widgets
 import json
 from django.core.serializers.json import DjangoJSONEncoder
  
+class OutcomeData():
+    """
+    Contains the common information for an outcome and a given account. 
+    """
+    def __init__(self, acc, out):
+        self.outcome = out
+        self.account = acc
+        if acc:
+            self.amount = AccountBalance.get(acc, out).amount
+
 class MarketForm(forms.Form):
     # the market this form is about
     market = None
@@ -15,12 +25,6 @@ class MarketForm(forms.Form):
     account = None
     # the (single bet) claim the user has selected 
     claim = None
-    # the (single bet) amount the user has selected
-    amount = forms.DecimalField(
-        initial=0,
-        max_digits=6, 
-        decimal_places=2,
-        widget = widgets.NumberInput(attrs = { 'onchange': 'validate_amount(this)'}))
     
     # the (multi bet) position the user has chosen
     position = []
@@ -36,16 +40,11 @@ class MarketForm(forms.Form):
 
         return json.dumps(outcome_dict, cls=DjangoJSONEncoder)
 
-    class OutcomeData():
-        def __init__(self, acc, out):
-            self.outcome = out
-            self.account = acc
-            self.amount = AccountBalance.get(acc, out).amount
 
     def __init__(self, market, account, *args, **kwargs):
         self.market = market
         self.market_active = market.is_active()
-        self.events = [ (e.description, [MarketForm.OutcomeData(account, out) for out in e.outcomes.all()]) for e in market.events.all()]
+        self.events = [ (e, [OutcomeData(account, out) for out in e.outcomes.all()]) for e in market.events.all()]
         self.outcomes = list(Outcome.objects.filter(event__market=self.market))
 
         self.account = account
@@ -65,6 +64,17 @@ class MarketForm(forms.Form):
 
         super(MarketForm, self).__init__()
 
+class EventForm(forms.ModelForm):
+    class Meta:
+        model = Event
+
+    
+
+    def __init__(self, acc, *args, **kwargs):
+
+        super().__init__(self, *args, **kwargs)
+        self.account = acc
+        self.outcomes = [OutcomeData(acc, out) for out in self.instance.outcomes.all()]
 
 class UploadForm(forms.Form):
     # file to be currently uploaded. 

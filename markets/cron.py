@@ -2,7 +2,7 @@
 from markets.models import DataSet
 from sched import scheduler
 from django.utils import timezone
-from threading import Thread, Timer
+from threading import Timer, Thread
 import time
 from markets.signals import dataset_change
 from functools import partial
@@ -47,15 +47,15 @@ Makes sure the cron tracker is up-to-date. """
         if track_cur == track_new:
             return
 
+        logger.info("Rescheduling market %s" % mkt)
+
         if track_cur:
-            print("Untracking %s. Ends at %s" % (self.jobs[mkt][:2]))
+            #print("Untracking %s. Ends at %s" % (self.jobs[mkt][:2]))
             self.jobs[mkt][2].cancel()
             del self.jobs[mkt]
 
         if track_new:
-            self.add(mkt, set, track_new)
-
-
+            Cron.advance_set(set)
 
 
 

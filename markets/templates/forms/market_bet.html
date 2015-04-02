@@ -1,32 +1,35 @@
 ﻿
 {% if form.market_active %}
-    
+        <p>Your current bank is {{ form.account.funds }} credits. </p>
     <form action="{% url 'markets:market' form.market.id %}" method="post">
     {% csrf_token %}
         
-    <h2>New order:</h2>
     {# possible outcomes #}
     <p>
-        <table border="1" id="outcome_table">
+        <table border="1" id="outcome_table" style="text-align:center">
             <tr>
                 <th>Event</th>
                 <th colspan="99">Outcomes</th>
             </tr>
         {% for e in form.events %}
             <tr>
-                <th rowspan="2">
-                    {{ e.0 }}
+                <th>
+                    {{ e.0.name }}
                 </th>
                 {% for od in e.1 %}
                     <td>
                         {{ od.outcome.name }} 
                         <br/>
-                        <a data-tool="{{od.outcome.price_tooltip}}" class="tooltip bottom" name="outcome_info">
+                        <a data-tool="The current price of purchasing a single share" class="tooltip bottom" name="outcome_info">
                         B: <b>{{od.outcome.buy_offer}}</b>
+                        </a>
+                        <a data-tool="The current reward of selling a single share" class="tooltip bottom" name="outcome_info">
                         S: <b>{{od.outcome.sell_offer}}</b>
                         </a>
                         <br/>
+                        <a data-tool="The current amount of shares you have" class="tooltip bottom" name="outcome_info">
                         CUR: {{od.amount}}
+                        </a>
                         <br/>
                         <input type="number" id="{{od.outcome.id}}" name="pos_{{od.outcome.id}}" class="amount" value="0" oninput="validate_amounts()"/>
                     </td>
@@ -37,7 +40,7 @@
         {# Total cost approximation #}
         <tr>
             <th colspan="1">Estimated cost:</th>
-            <td><input type="text" name="total_cost" value="0"/></td>
+            <td colspan="1"><input type="text" name="total_cost" value="0"/></td>
         </tr>
         </table>
         <label class="error">{{ form.errors.claim }}</label>

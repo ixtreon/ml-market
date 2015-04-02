@@ -42,8 +42,9 @@ class MarketConfig(AppConfig):
         mkt_type = datum.data_set.market.type
         logger.info("Finalising challenge '%s' that ended at '%s' using the '%s' maker. " % 
                     (str(datum), datum.data_set.challenge_end(), mkt_type))
-        #market_handler = MarketConfig.market_types.get(mkt_type)
-        #market_handler.end_challenge(datum)
+
+        market_handler = MarketConfig.market_types.get(mkt_type)
+        market_handler.end_challenge(datum)
 
     @staticmethod
     def on_order_placed(sender, **kwargs):

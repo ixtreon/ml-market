@@ -1,7 +1,7 @@
 
 from markets.signals import order_placed
 from django.db import transaction
-from markets.models import Outcome, Order, to_decimal, MarketBalance, AccountBalance
+from markets.models import Outcome, Order, to_decimal, MarketBalance, AccountBalance, Result
 from itertools import groupby
 from math import *
 from decimal import Decimal
@@ -24,11 +24,15 @@ class MSRMaker(MarketMaker):
         """Evaluates the risk (also cost) of holding the given supply. """
         return to_decimal(self.liquidity * log(sum(exp(s / self.liquidity) for s in supply)))
 
+    def current_price(self, supply, amount):
+        a = exp(amount / self.liquidity) 
+        b = sum(exp(s / self.liquidity) for s in supply)
+        return a / b
 
     def sample_prices(self, ev, d = 1):
         """
         Samples the prices for each of the events' outcomes. 
-        Returns a dict with tuples for the buy/sell prices. 
+        Returns a dict with tuples with the current/buy/sell price. 
         """
 
         # get the supply and the current risk
@@ -38,20 +42,27 @@ class MSRMaker(MarketMaker):
 
         # loop over each outcome (variable)
         for (out, amount) in supply.items():
-
-            starting_supply = supply[out]
-            assert starting_supply == supply[out]
-
             supply[out] -= d
             buy = self.log_cost(supply.values()) - current_risk
             supply[out] += 2 * d
             sell = self.log_cost(supply.values()) - current_risk
             supply[out] -= d
 
-            prices[out] = (buy, sell)
+            current = self.current_price(supply.values(), amount)
 
-            assert starting_supply == supply[out]
+            prices[out] = (current, buy, sell)
+
+            assert supply[out] == amount
         return prices
+    
+    def update_prices(self, ev):
+        prices = self.sample_prices(ev)
+        # and update our offers
+        for (out, (c, b, s)) in prices.items():
+            out.current_price = c
+            out.sell_offer = b  # user can sell at our buy price
+            out.buy_offer = s   # user can buy at our sell price
+            out.save()
 
     @transaction.atomic
     def order_placed(self, ord):
@@ -79,24 +90,15 @@ class MSRMaker(MarketMaker):
             # deduct the total transaction cost from the account
             acc.funds -= cost
                     
-            # sample buy/sell prices
+            # update buy/sell prices
             for (ev, ps) in order_ev_pos:
-                prices = self.sample_prices(ev)
-                # and update our offers
-                for (out, (b, s)) in prices.items():
-                    out.sell_offer = b  # user can sell at our buy price
-                    out.buy_offer = s   # user can buy at our sell price
-                    out.save()
-                    print("b: %f s: %f" % (b, s))
-            # TODO: add shares to the user?
+                self.update_prices(ev)
 
         ord.set_processed()
         acc.save()
         ord.save()
         logger.debug("Order '%s' processed!" % (ord,))
             
-
-
     def can_quote(self):
         return True
 
@@ -115,12 +117,9 @@ class MSRMaker(MarketMaker):
         # get the supply after completing the trade
         for p in ps:
             assert (p.outcome in supply)
-            supply[p.outcome] -= p.amount
+            supply[p.outcome] += p.amount
         # and eval the new risk with it
         new_risk = self.log_cost(supply.values())    
         # cost is the change in risk
         return new_risk - current_risk
-
-    def end_challenge(self, datum):
-        """Distributes the monney!"""
-        raise NotImplementedError()
+    

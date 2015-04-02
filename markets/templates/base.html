@@ -8,6 +8,9 @@
     
     {# jQuery #}
     <script src="{% static "jquery-1.11.1.js" %}"></script>
+
+    
+    <script src="{% static "price_bar.js" %}"></script> 
 </head>
 <body>
 
@@ -23,10 +26,10 @@
     </table>
     <p id="nav_greet">
     {% if user.is_authenticated %}
-        Welcome to the shano market, {{ user.username }}. 
+        Welcome to the market, {{ user.username }}. 
         <a href="{% url "logout" %}">[Log out]</a>
     {% else %}
-        Welcome to the shano market. Please 
+        Welcome to the market. Please 
         <a href="{% url "login" %}">[Log in]</a>.
     {% endif %}
     </p>

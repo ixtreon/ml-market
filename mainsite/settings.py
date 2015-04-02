@@ -154,3 +154,4 @@ if 'graph_models' in sys.argv:
 #            'TEST_NAME': os.path.join(os.path.dirname(__file__), 'db.sqlite3'),
 #        }
 #    }
+TEMPLATE_DIRS = (os.path.join(os.path.dirname(__file__), '..', 'markets/templates').replace('\\','/'),)

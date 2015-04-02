@@ -1,4 +1,6 @@
-from markets.models import Market, DataSet, Outcome, Event
+from markets.models import Market, DataSet, Outcome, Event, Datum
+from django import db
+from django.db import transaction
 
 class TestTools():
 
@@ -47,3 +49,53 @@ class TestTools():
         set.random(n_items)
         set.save()
         return set
+
+    @transaction.atomic
+    def create_driver_identification():
+
+        mkt = Market.objects.create(
+            name="Driver Profile Identification", 
+            description="""In this market specific driver profiles are presented in the form of a list of GPS co-ordinates. The goal of the market is the identification of key features in the driving style of the particular drivers. """)
+        mkt.save()
+
+        events = [
+            "Speeding Level",
+            "Overall driver safety",
+            "Overall driver safety",
+            "Overall driver safety",
+            "",
+            ]
+
+        for i in range(0, len(events)):
+                a = events[i]
+                event = Event.objects.create(
+                    name='%s' % (a),
+                    description='Whaaat' % (a, b),
+                    market=mkt)
+                event.save()
+
+                eLow = Outcome.objects.create(
+                    event = event,
+                    name = 'Low %s' % a,
+                    description = '%s beats %s with at least one point' % (a,b))
+                eLow.save()
+                eMid = Outcome.objects.create(
+                    event = event,
+                    name = "Draw",
+                    description = 'The match ends in a draw')
+                eMid.save()
+                eHigh = Outcome.objects.create(
+                    event = event,
+                    name = '%s wins' % b,
+                    description = '%s beats %s with at least one point' % (b,a))
+                eHigh.save()
+
+        set = DataSet.objects.create(
+            market=mkt,
+            name="Six Nations 1990-1999",
+            description="A dataset of 10 randomised Six Nations tournaments, supposedly happening in the years 1990-2000. <br/> These have nothing to do with the real Six Nations results. ")
+        set.save()
+        for i in range(1990, 2000):
+            d = Datum.random(set, "Rugby Tournament %d" % i, "What did or did not happen during the face-off in the year %d. " % i)
+
+        set.start()

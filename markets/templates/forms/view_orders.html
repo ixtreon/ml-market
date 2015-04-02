@@ -3,9 +3,6 @@
     <table border="1" id="outcome_table" style="width:100%">
         <tr>
             <th>Timestamp</th>
-            {% for o in form.outcomes %}
-            <th>{{ o.name }}</th>
-            {% endfor %}
             <th>Processed?</th>
             <th>Successful?</th>
             <th>Cancel?</th>
@@ -14,9 +11,6 @@
     <tr>
         <td>{{ ord.timestamp }}</td>
 
-        {% for pos in positions %}
-        <td>{{ pos }}</td>
-        {% endfor %}
 
         <td>{{ ord.is_processed }}</td>
 

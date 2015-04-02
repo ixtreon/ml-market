@@ -1,17 +1,18 @@
 from django.contrib import admin, messages
-from markets.models import Market, Outcome, Order, DataSet, Datum, Event, Result, Position
+from markets.models import Market, Outcome, Order, DataSet, Datum, Event, Result, Position, Document, Account
 from django.forms.fields import IntegerField
 from django import forms
 from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned, ValidationError
 
 
-# the market admin form; 
-# right now it does nothing
-class MarketAdminForm(forms.ModelForm):   
+class MarketAdminForm(forms.ModelForm):  
+    """
+    Provides simple CRUD functionality for the Market model. 
+    """ 
     class Meta:
         model = Market
-        fields = ('description', 'type',) 
+        fields = ('name', 'description', 'type',) 
 
     user = None
     
@@ -19,9 +20,13 @@ class MarketAdminForm(forms.ModelForm):
 # Shows an inline form for outcomes 
 # and makes sure they exist and sum to one
 class MarketAdmin(admin.ModelAdmin):
+    """
+    Specifies the form used for CRUD operations, 
+    along with the fields visible in the list view
+    """
     form = MarketAdminForm
-    list_display = ('description', 'n_events', 'n_datasets', 'is_active', 'pub_date')
-
+    list_display = ('name', 'description', 'n_events', 'n_datasets', 'is_active', 'pub_date')
+        
 
 # The form used to create Outcome Sets
 # An outcome set can be either added manually
@@ -29,13 +34,15 @@ class MarketAdmin(admin.ModelAdmin):
 class EventAdminForm(forms.ModelForm):
     class Meta:
         model = Event
-        fields = ('market', 'description',)
+        fields = ('market', 'name', 'description',)
     
 # The admin interface for events. 
 # Makes sure inline outcomes are normalized. 
 class EventAdmin(admin.ModelAdmin):
     class OutcomeInline(admin.TabularInline):
         model = Outcome
+        fields = ('name', 'description',)
+        
         extra = 2
     form = EventAdminForm
     inlines = [OutcomeInline]
@@ -72,8 +79,9 @@ class DataSetAdminForm(forms.ModelForm):
                 'is_training')
     # the amount of random entries to generate. 
     n_random_entries = forms.IntegerField(initial=0, required=False)
+
     # the uploaded file to use as an input. 
-    # upload_file = forms.ModelChoiceField(queryset=Document.objects.none(), empty_label='None', required=False)
+    upload_file = forms.ModelChoiceField(queryset=Document.objects.none(), empty_label='None', required=False)
 
     # gets the files this user has uploaded
     # also removes the upload buttons if editing a set
@@ -137,10 +145,10 @@ class DataSetAdmin(admin.ModelAdmin):
             'is_training', ]}),
         ('Data Source', {'fields': ['n_random_entries', 'upload_file']}),
     ]
-    list_display = ('market', 'description', 'is_active', 'active_datum_id', 'next_challenge_in',
+    list_display = ('market', 'description', 'is_active', 'active_datum_id', 'next_challenge_in', 'challenge_start',
                 'datum_count')
 
-    actions = ['reset', 'start']
+    actions = ['reset', 'start', 'stop', 'force_complete']
 
     def start(modeladmin, request, queryset):
         "Starts the selected dataset. "
@@ -155,6 +163,14 @@ class DataSetAdmin(admin.ModelAdmin):
     def reset(modeladmin, request, queryset):
         for ds in queryset:
             ds.reset()
+
+    def force_complete(modeladmin, request, queryset):
+        for ds in queryset:
+            ds.force_advance()
+
+    def stop(modeladmin, request, queryset):
+        for ds in queryset:
+            ds.stop()
 
     # sets the user for the DataSetAdminForm
     def get_form(self, request, *args, **kwargs):
@@ -185,13 +201,16 @@ class PositionAdmin(admin.ModelAdmin):
     list_display = ('order', 'outcome', 'amount', 'contract_price')
     
 class OutcomeAdmin(admin.ModelAdmin):
-    list_display = ('name', 'set', 'current_price')
+    list_display = ('name', 'description', 'set', 'current_price')
 
 class DatumAdmin(admin.ModelAdmin):
-    list_display = ('x', 'set_id', 'data_set')
-
+    list_display = ('description', 'set_id', 'data_set')
+    
 class ResultAdmin(admin.ModelAdmin):
-    list_display = ('datum', 'outcome')
+    list_display = ('datum', 'event', 'outcome')
+
+class AccountAdmin(admin.ModelAdmin):
+    list_display = ('user', 'market', 'funds')
 
 # register the above classes with the admin interface. 
 admin.site.register(Market, MarketAdmin)
@@ -201,3 +220,4 @@ admin.site.register(DataSet, DataSetAdmin)
 admin.site.register(Datum, DatumAdmin)
 admin.site.register(Position, PositionAdmin)
 admin.site.register(Result, ResultAdmin)
+admin.site.register(Account, AccountAdmin)
