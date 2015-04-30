@@ -7,9 +7,17 @@ Machine learning markets are a type of prediction markets where a number of trad
 
 # Installation
 
-You will need Python 3.3 and Django 1.7 in addition to the `djano-enumfields` and `django-rest-framework` Python packages avaiable using `pip`. 
+You will need Python 3.3+ and the following components from your favourite package manager for Python (e.g. `pip`):
 
-Once you have them grab the latest source code from [Github](https://github.com/ixtreon/ml-market). 
+| Component Name       | Package Name       |
+|----------------------|-------------------:|
+|Django                |django              |
+|Django REST Framework |djangorestframework |
+|Django Extensions     |django-extensions   |
+|Django Enum Fields    |django-enumfields   |
+
+
+Once you have those, grab the latest source code from [Github](https://github.com/ixtreon/ml-market). 
 
 Once inside the root directory of the project you can create the required database models by running:
 	
@@ -54,8 +62,9 @@ Note that this module does not handle in any way the orders it receives but simp
 
 # Market Makers
 
-The **msr-maker** module is a bare-bones implementation of the logarithmic market scoring rule (Hanson et al.) market maker. It listens for orders and instantly matches them calculating a price based on the current holdings of the market maker and the liquidity constant. 
+The **msr-maker** module is an implementation of the logarithmic market scoring rule (Hanson et al.) market maker. It listens for orders and instantly matches them calculating a price based on the current holdings of the market maker and the liquidity constant. 
+
+The **order_book** module contains a bare-bones order book maker which is considerably simpler than the msr-maker. 
 
 # TODO
 + Support for structured input (xml or json)
-+ Installation should mention database setup, user accounts, admin pages usage. 
