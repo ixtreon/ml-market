@@ -36,7 +36,6 @@ class OrderBook():
         return amount_left
 
 
-
     @transaction.atomic
     def order_placed(self, ord):
         "Handles the processing of orders by matching them with orders of the opposite type. "
@@ -53,8 +52,6 @@ class OrderBook():
             self.update_prices(ev)
 
 
-
-            
     def can_quote(self):
         return False
 
@@ -74,4 +71,7 @@ class OrderBook():
             except:
                 hi = Decimal('NaN')
             out.buy_offer = hi
+        pass
+
+    def end_challenge(self, c):
         pass
