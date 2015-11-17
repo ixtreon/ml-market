@@ -1,5 +1,7 @@
+﻿
+from markets.models import AccountBalance, MarketBalance, Result
+from markets.log import logger
 
-from markets.models import AccountBalance, MarketBalance
 class MarketMaker(object):
     """Specifies the actions each market maker should implement. """
 
