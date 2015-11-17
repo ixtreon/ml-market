@@ -1,4 +1,4 @@
-from django.apps import AppConfig
+﻿from django.apps import AppConfig
 from django import apps
 from msr_maker.msrmaker import MSRMaker
 from markets.cron import Cron
@@ -7,6 +7,7 @@ from markets.models import MarketType, Event, Interval
 from markets.signals import *
 from markets.log import logger
 from datetime import datetime
+import sys
 
 class MarketConfig(AppConfig):
     name = 'markets'
@@ -30,8 +31,11 @@ class MarketConfig(AppConfig):
         # Start the Cron instance
         # updates completed challenges
         # schedules and executes new challenges
-        self.cron = Cron()
-        self.cron.start()
+
+        # Do so only if the 'runserver' command was executed
+        if len(sys.argv) > 1 and sys.argv[1] == 'runserver':
+            self.cron = Cron()
+            self.cron.start()
 
     @staticmethod
     def on_dataset_expired(sender, **kwargs):
