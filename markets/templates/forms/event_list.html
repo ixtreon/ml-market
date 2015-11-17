@@ -1,0 +1,19 @@
+<h2>Market Events</h2>
+
+    <table border="1" id="outcome_table" style="width:100%">
+        <tr>
+            <th>Event</th>
+            <th>Market Position</th>
+            <th>Activity</th>
+        </tr>
+    {% for ev in form.events %}
+    <tr>
+        <td><a data-tool="{{ ev.0.description }}" href="{% url 'markets:event' form.market.id ev.0.id %}" class="tooltip bottom">{{ ev.0.name }}</a></td>
+        <td>
+            <svg id="prices_{{ev.0.id}}" height="14" width="100%" stroke="black"/>
+            <script>price_bar($("#prices_{{ev.0.id}}")[0], {{ ev.0.json_prices | safe}})</script>
+        </td>
+        <td>NYI</td>
+    </tr>
+    {% endfor %}
+    </table>

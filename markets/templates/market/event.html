@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+
+{% block content %}
+
+<h1><a href="{% url "markets:market" form.instance.market.id %}">{{ form.instance.market.name }}</a> > {{ form.instance.name }}</h1> 
+
+<p>{{ form.instance.description }}</p>
+
+<h2>Market Valuation</h2>
+
+<table border="1" style="text-align:center">
+    <tr>
+        <th>
+            Outcome
+        </th>
+        {% for out in form.instance.outcomes.all %}
+        <td>{{out.name}}</td>
+        {% endfor %}
+    </tr>
+    <tr>
+        <th><a data-tool="The current price of a single share. " class="tooltip bottom">
+            Price
+        </a></th>
+        {% for out in form.instance.outcomes.all %}
+        <td>
+            <meter value="{{out.current_price}}" min="0" max="1.0">q pak</meter>
+            <br/>
+            {{out.current_price}}
+        </td>
+        {% endfor %}
+    </tr>
+    <tr>
+        <th><a data-tool="The total number of shares the market has bought or sold per outcome." class="tooltip bottom">
+            Market Balance
+        </a></th>
+        {% for out in form.instance.outcomes.all %}
+        <td>{{out.market_balance}}</td>
+        {% endfor %}
+    </tr>   
+    <tr>
+        <th><a data-tool="The total number of shares you currently possess for each outcome." class="tooltip bottom">
+            Account Balance
+        </a></th>
+        {% for out in form.outcomes %}
+            <td>{{out.amount}}</td>
+        {% endfor %}
+    </tr>
+</table>
+
+<div class="content_item">
+    {% include "forms/event_bet.html" %}
+</div>
+
+
+
+
+{% endblock %}

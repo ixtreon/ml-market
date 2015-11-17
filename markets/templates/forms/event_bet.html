@@ -1,0 +1,84 @@
+﻿<h2>Play</h2>
+<p>
+    Your current bank is {{ form.account.funds }} credits.
+</p>    
+<form action="{% url 'markets:event' form.instance.market.id form.instance.id %}" method="post">
+    {% csrf_token %}
+    {# possible outcomes #}
+    <p>
+        <table border="1" id="outcome_table">
+            <tr>
+                <th>Outcome</th>
+                <th>Description</th>
+                <th>Buy Offer</th>
+                <th>Sell Offer</th>
+                <th>Amount</th>
+            </tr>
+        {% for o in form.instance.outcomes.all %}
+        <tr>
+            <td>{{o.name}}</td>
+            <td>{{o.description}}</td>
+            <td>{{o.buy_offer}}</td>
+            <td>{{o.sell_offer}}</td>
+
+            <td>
+                <input type="number" id="{{o.id}}" name="pos_{{o.id}}" class="amount" value="0" oninput="validate_amounts()"/>
+            </td>
+        </tr>
+        {% endfor %}
+        <tr/>
+        <tr>
+            <th>Estimated Cost:</th>
+            <td colspan="1000" style="text-align:right"><input type="text" name="total_cost" value="0"/></td>
+        </tr>
+        </table>
+    </p>
+
+
+    <p>
+        {# bet button #}
+        <input type="submit" value="Place an order" />
+        {# quote button #}
+        <input type="submit" value="Request a quote" />
+    </p>    
+
+
+    {# js verification #}
+    <script>var funds = {{ form.account.funds }}</script>
+    <script>
+        var btn_outcomes = $(".outcome")
+        var btn_amount = $('input[name=amount]')[0]
+        var btn_cost = $("#total_cost")[0]
+        
+        btn_amount.value = 0
+        validate_amount(btn_amount)
+        function validate_claims() {
+            var selected = $('input[class=outcome]:checked')
+            var msg = ""
+            if(!selected.length)
+                msg = "Please select an outcome. "
+
+            btn_outcomes.each(function (k,v) {
+                v.setCustomValidity(msg)
+            })
+        }
+        function validate_amount(t) {
+            var isNumeric = (t.value != "")
+            if (isNumeric) {
+                var amount = parseInt(t.value)
+                if (amount > funds) {
+                    t.setCustomValidity("You cannot bet more than " + funds.toString() + " credits!")
+                    return
+                }
+                if (amount == 0) {
+                    t.setCustomValidity("Please select an amount to bet. ")
+                    return
+                }
+                
+            }
+            t.setCustomValidity("")
+        }
+        validate_claims()
+    </script>
+
+    </form>
