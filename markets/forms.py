@@ -1,4 +1,4 @@
-from django import forms
+﻿from django import forms
 from markets.models import Market, Outcome, Order, Document, Event, AccountBalance
 from django.core import validators
 from _decimal import Decimal
@@ -67,7 +67,7 @@ class MarketForm(forms.Form):
 class EventForm(forms.ModelForm):
     class Meta:
         model = Event
-
+        exclude = ()
     
 
     def __init__(self, acc, *args, **kwargs):
