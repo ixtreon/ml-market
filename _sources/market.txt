@@ -1,8 +1,0 @@
-Markets
-======
-.. automodule:: markets.models
-	:members:
-
-
-.. automodule:: markets.marketmaker
-	:members:

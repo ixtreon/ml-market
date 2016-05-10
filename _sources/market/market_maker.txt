@@ -1,5 +1,0 @@
-Market Makers
-=============
-
-.. automodule:: markets.marketmaker
-	:members:
