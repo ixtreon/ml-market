@@ -25,13 +25,13 @@ def api_bid(request, mkt):
     if request.method == 'GET':
         return Response({"result": "Please use the POST method to place a bid!"})
     
-    # check the user has a market
+    # check the user has an account on the market
     u = request.user
     a = m.primary_account(request.user)
     if not a:
         return Response({"result": "Please create an account for this market first!"})
 
-    # check the POST data to the parser
+    # send the POST data to the parser
     post = request.POST
     ps = mkt.parse_bid(post)
     if not ps:

@@ -1,3 +1,5 @@
 django==1.7.3
 django-rest-framework==3.0.3
+django-extensions
+django-enumfields
 sphinx==1.3

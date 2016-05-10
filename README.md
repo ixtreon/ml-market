@@ -3,18 +3,18 @@ ml-market
 
 **ml-market** is a software for creating online machine learning or prediction markets written in Python using the Django web framework. In comparison to existing solutions it provides a flexible market maker architecture and a RESTful API for market interaction. 
 
-Machine learning markets are a type of prediction markets where a number of traders interact with a central market authority (a _market maker_) with the purpose of making predictions concerning the possible outcomes of some unknown event. Markets should be made in such a way as to incentivise participants to bet according to their true beliefs in order to obtain a reliable estimate on the outcome of the event. 
+Machine learning markets are a type of prediction markets where a number of traders interact with a central market authority (a _market maker_) with the purpose of making predictions concerning the possible outcomes of some unknown event. Markets can be designed in such a way as to incentivise participants to bet according to their true beliefs. This allows the market maker to obtain a reliable estimate on the outcome of the event. 
 
 # Installation
 
-You will need Python 3.3+ and the following components from your favourite package manager for Python (e.g. `pip`):
+You will need Python 3.3+ and the following components from your favourite Python package manager (e.g. `pip`):
 
-| Component Name       | Package Name       |
-|----------------------|-------------------:|
-|Django                |django              |
-|Django REST Framework |djangorestframework |
-|Django Extensions     |django-extensions   |
-|Django Enum Fields    |django-enumfields   |
+| Component Name       | Package Name       | Version  |
+|----------------------|--------------------|----------|
+|Django                |django              | 1.7.3    |
+|Django REST Framework |djangorestframework | 3.0.3    |
+|Django Extensions     |django-extensions   |  |
+|Django Enum Fields    |django-enumfields   |  |
 
 
 Once you have those, grab the latest source code from [Github](https://github.com/ixtreon/ml-market). 
@@ -33,7 +33,7 @@ If you want to change the database back-end to something more suitable for use i
 
 To then start the Django test server run:
 
-    python manage.py runserver
+	python manage.py runserver
 
 from inside the main project directory. 
 
@@ -48,9 +48,23 @@ To run the existing unit tests navigate to the root directory of the project and
 
 # Documentation
 
-Visit http://ixtreon.github.io/ml-market/
+Find it on http://ixtreon.github.io/ml-market/
+
+The documentation config and source can be found in the `doc/` folder. 
+
+To build the docs you will need [Sphinx](http://www.sphinx-doc.org). Here's a sanple script:
+
+	cd doc
+	sphinx-build . <output-directory>
+
 
 # Structure
+
+The project consists of two main modules: the market core which implements the basic market API and interface and the market makers that process orders. 
+
+You can inspect the `mkgraph.cmd` one-liner script which uses Django's `graph_models` to generate your own class diagrams of the different modules in the project. 
+
+## Markets
 
 The **markets** module defines the markets' core structure and its web views; it also includes a simple admin interface for their management. 
 
@@ -60,11 +74,14 @@ Note that this module does not handle in any way the orders it receives but simp
 
 
 
-# Market Makers
+## Market Makers
 
-The **msr-maker** module is an implementation of the logarithmic market scoring rule (Hanson et al.) market maker. It listens for orders and instantly matches them calculating a price based on the current holdings of the market maker and the liquidity constant. 
+Market makers listen for orders coming from the market core (the **markets** module) and eventually process them, marking them as either completed or rejected. 
 
-The **order_book** module contains a bare-bones order book maker which is considerably simpler than the msr-maker. 
+The **msr-maker** module is an implementation of the logarithmic market scoring rule (Hanson et al.) market maker. It instantly matches incoming orders calculating a price based on the current holdings of the market maker and a liquidity constant. 
+
+The **order_book** module contains a bare-bones order book maker which is supposed to cross-off two or more trades of opposite quantities and matching prices. 
+
 
 # TODO
 + Support for structured input (xml or json)
